@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>行星齿轮参数如何确定 · 交互演示</title>
+<style>
+  body { font-family:-apple-system,"PingFang SC",sans-serif; background:#1e2430; color:#dde3ea;
+         display:flex; flex-wrap:wrap; gap:20px; padding:20px; margin:0; }
+  h1 { font-size:19px; width:100%; margin:0; }
+  .sub { width:100%; color:#8b98a8; font-size:13px; }
+  canvas { background:#141a23; border-radius:12px; }
+  .panel { width:320px; font-size:13px; }
+  .grp { background:#232c3a; border-radius:10px; padding:12px 14px; margin-bottom:12px; }
+  .grp h3 { margin:0 0 8px; font-size:13px; color:#7cc4ff; }
+  .row { margin:10px 0 2px; }
+  .row label { display:flex; justify-content:space-between; font-size:12.5px; color:#c4cfdb; }
+  .row label b { color:#ffd166; font-weight:600; }
+  .row input { width:100%; }
+  .note { font-size:11.5px; color:#8b98a8; margin-top:2px; line-height:1.5; }
+  .ro { display:flex; justify-content:space-between; padding:2px 0; font-size:12.5px; }
+  .ro b { color:#8ef0c1; font-weight:600; }
+  .ok { color:#8ef0c1 !important; }
+  .warn { color:#ff8a8a !important; }
+  button { background:#3a4656; color:#fff; border:none; border-radius:6px; padding:7px 14px;
+           font-size:13px; cursor:pointer; margin:0 6px 6px 0; }
+  button.on { background:#27ae60; }
+  .doc { width:100%; max-width:1180px; background:#232c3a; border-radius:12px;
+         padding:18px 24px; font-size:13.5px; line-height:1.75; }
+  .doc h2 { font-size:15px; color:#7cc4ff; margin:18px 0 6px; }
+  .doc h2:first-child { margin-top:0; }
+  .doc .fx { background:#141a23; border-radius:8px; padding:8px 14px; margin:8px 0;
+             color:#ffd166; font-size:14px; display:inline-block; }
+  .doc .where { color:#8b98a8; font-size:12px; margin:2px 0 6px; line-height:1.6; }
+  .doc .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:10px 0 14px; }
+  .doc .fb { background:#141a23; border:1px solid #3a4656; border-radius:8px;
+             padding:8px 12px; font-size:12px; line-height:1.7; }
+  .doc .fb b { display:block; margin-bottom:2px; color:#7cc4ff; }
+  .doc .fb.in { border-color:#27ae60; } .doc .fb.in b { color:#8ef0c1; }
+  .doc .fb.out { border-color:#2f6fd0; } .doc .fb.out b { color:#7cc4ff; }
+  .doc .arr { align-self:center; color:#ffd166; font-size:16px; }
+  .doc .io { margin:6px 0; }
+  .doc .tg { display:inline-block; border-radius:5px; font-size:11px; color:#fff;
+             padding:1px 8px; margin-right:6px; vertical-align:1px; }
+  .doc .tg.in { background:#27ae60; }
+  .doc .tg.calc { background:#8a6d1a; }
+  .doc .tg.out { background:#2f6fd0; }
+  .doc ol, .doc ul { margin:6px 0; padding-left:22px; }
+  .doc li { margin:3px 0; }
+  .doc table { border-collapse:collapse; margin:8px 0; font-size:12.5px; }
+  .doc td, .doc th { border:1px solid #3a4656; padding:4px 12px; }
+  .doc th { color:#7cc4ff; }
+  .doc .tag { display:inline-block; background:#2f6fd0; color:#fff; border-radius:5px;
+              font-size:11.5px; padding:1px 8px; margin-right:6px; }
+</style>
+</head>
+<body>
+<h1>行星齿轮（NGW 型）· 参数确定全流程演示</h1>
+<div class="sub">左侧是按你输入的参数<b>真实配齿并实时绘制</b>的行星轮系：太阳轮（中）→ 行星轮 ×n → 内齿圈（外圈固定）→ 行星架（输出）。下面的面板走完整个设计流程：传动比 → 配齿三条件 → 模数齿宽 → 强度校核。</div>
+<canvas id="cv" width="820" height="820"></canvas>
+<div class="panel">
+  <div class="grp">
+    <h3>视图</h3>
+    <div class="row"><label>视图缩放 <b id="vZoom"></b></label>
+      <input id="zoom" type="range" min="1" max="16" step="0.5" value="8"></div>
+    <button id="btnPause">暂停</button>
+    <button id="btnAdj" class="on">邻接间隙检查</button>
+    <button id="btnPitch" class="on">节圆显示</button>
+  </div>
+  <div class="grp">
+    <h3>① 设计输入</h3>
+    <div class="row"><label>目标传动比 i <b id="vI"></b></label>
+      <input id="iT" type="range" min="3" max="9" step="0.1" value="5"></div>
+    <div class="note">单级 NGW 实用范围 3~9。更大减速比 → 多级串联。</div>
+    <div class="row"><label>太阳轮齿数 z<sub>s</sub> <b id="vZs"></b></label>
+      <input id="zs" type="range" min="12" max="40" step="1" value="18"></div>
+    <div class="note" id="noteZs">标准 20° 齿轮 z≥17 不根切；更小需正变位。</div>
+    <div class="row"><label>行星轮个数 n <b id="vN"></b></label>
+      <input id="np" type="range" min="3" max="5" step="1" value="3"></div>
+    <div class="note">n=3 最常用；更多需浮动均载，且邻接条件变紧。</div>
+    <div class="row"><label>模数 m <b id="vM"></b></label>
+      <input id="m" type="range" min="0.5" max="2" step="0.1" value="1"></div>
+    <div class="note">由弯曲强度/结构空间初选，校核不过再加大。模数决定整机径向尺寸。</div>
+  </div>
+  <div class="grp">
+    <h3>② 配齿结果（只读）</h3>
+    <div class="ro"><span>行星轮齿数 z<sub>p</sub> = (z<sub>r</sub>−z<sub>s</sub>)/2</span><b id="rZp"></b></div>
+    <div class="ro"><span>内齿圈齿数 z<sub>r</sub></span><b id="rZr"></b></div>
+    <div class="ro"><span>实际传动比 i = 1+z<sub>r</sub>/z<sub>s</sub></span><b id="rIact"></b></div>
+    <div class="ro"><span>太阳轮–行星轮中心距 a</span><b id="rA"></b></div>
+    <div class="ro"><span>内齿圈外径（含轮缘）</span><b id="rDout"></b></div>
+  </div>
+  <div class="grp">
+    <h3>③ 配齿三条件（必须同时满足）</h3>
+    <div class="ro"><span>同心条件 z<sub>r</sub>=z<sub>s</sub>+2z<sub>p</sub></span><b id="cCoax" class="ok"></b></div>
+    <div class="ro"><span>装配条件 (z<sub>s</sub>+z<sub>r</sub>)/n 为整数</span><b id="cAsm"></b></div>
+    <div class="ro"><span>邻接条件（齿顶间隙）</span><b id="cAdj"></b></div>
+    <div class="note">装配条件不满足时，注意画面上各行星轮与齿圈的啮合相位会"打架"——实物根本装不进去。</div>
+  </div>
+  <div class="grp">
+    <h3>④ 其他校核提示</h3>
+    <div class="ro"><span>太阳轮根切（z<sub>s</sub>≥17）</span><b id="cUc"></b></div>
+    <div class="ro"><span>行星轮轴承孔壁厚 ≥ 2.5m</span><b id="cWall"></b></div>
+    <div class="ro"><span>强度校核（接触+弯曲）</span><b>需按 GB/T 3480 另行计算</b></div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2><span class="tag">总览</span>输入 → 计算 → 输出：参数推导链</h2>
+  行星齿轮设计本质是：<b>从"需求参数"出发，经一串公式和校验，逐个推出全部"几何参数"</b>。整条链如下：
+  <div class="flow">
+    <div class="fb in"><b>输入（已知需求）</b>目标传动比 i*<br>输入扭矩 T₁（N·mm）<br>输入转速 n₁（rpm）<br>空间限制（最大外径）<br>寿命 / 工况</div>
+    <div class="arr">＋</div>
+    <div class="fb in"><b>人为选择（经验取值）</b>行星轮个数 n = 3<br>太阳轮齿数 z<sub>s</sub> ≥ 17<br>压力角 α = 20°<br>齿宽系数 φ<sub>d</sub> = 0.4~0.7</div>
+    <div class="arr">→</div>
+    <div class="fb"><b>第 1 步</b>配齿<br>定 z<sub>r</sub>、z<sub>p</sub></div>
+    <div class="arr">→</div>
+    <div class="fb"><b>第 2 步</b>三条件校验<br>不过 ⇒ 回改 z<sub>s</sub></div>
+    <div class="arr">→</div>
+    <div class="fb"><b>第 3 步</b>由 T₁ 定 m、b<br>算全部直径</div>
+    <div class="arr">→</div>
+    <div class="fb"><b>第 4/5 步</b>变位优化<br>强度校核<br>不过 ⇒ 加大 m</div>
+    <div class="arr">→</div>
+    <div class="fb out"><b>输出（全部几何参数）</b>z<sub>s</sub>、z<sub>p</sub>、z<sub>r</sub>、n、m、b、x<br>中心距 a、整机外径 D</div>
+  </div>
+  下面每一步都按统一格式展开：<span class="tg in">输入</span>这一步依赖什么 → <span class="tg calc">计算</span>用什么公式 → <span class="tg out">输出</span>确定了哪些参数。
+
+  <h2><span class="tag">第 1 步</span>配齿：传动比 → 三个齿数</h2>
+  <div class="io"><span class="tg in">输入</span>目标传动比 i*（来自需求：电机转速 / 关节输出转速）、行星轮个数 n（选定，常用 3）、太阳轮齿数 z<sub>s</sub>（选定，≥17 不根切）。</div>
+  <div class="io"><span class="tg calc">计算</span>内齿圈固定时 i = 1 + z<sub>r</sub>/z<sub>s</sub>，反解出：</div>
+  <div class="fx">z<sub>r</sub> = (i* − 1)·z<sub>s</sub> 取整　⇒　z<sub>p</sub> = (z<sub>r</sub> − z<sub>s</sub>)/2　⇒　实际 i = 1 + z<sub>r</sub>/z<sub>s</sub></div>
+  <div class="where">式中：z<sub>r</sub>、z<sub>p</sub>、z<sub>s</sub> — 内齿圈、行星轮、太阳轮齿数；i — 传动比（太阳轮转速 / 行星架转速）。z<sub>p</sub> 的公式来自同心条件（三者共轴，见第 2 步）。</div>
+  <div class="io"><span class="tg out">输出</span><b>z<sub>r</sub>、z<sub>p</sub>、实际传动比 i</b>（齿数必须取整，所以实际 i 与目标 i* 略有偏差，面板里能看到）。i* 越大 z<sub>s</sub> 占比越小，受最小齿数限制，单级 i ≤ 9。</div>
+
+  <h2><span class="tag">第 2 步</span>校验：三个齿数 → 能不能装</h2>
+  <div class="io"><span class="tg in">输入</span>第 1 步得到的 z<sub>s</sub>、z<sub>p</sub>、z<sub>r</sub>、n。</div>
+  <div class="io"><span class="tg calc">计算</span>逐条验证（面板 ③ 实时显示的就是这三条）：</div>
+  <ul>
+    <li><b>同心条件</b>（三个齿轮能否共轴）：<span class="fx">z<sub>r</sub> = z<sub>s</sub> + 2z<sub>p</sub></span>标准齿轮必须严格满足；采用角度变位可放宽为"内外两对啮合中心距相等"。本工具按此式取整，自动满足。</li>
+    <li><b>装配条件</b>（n 个行星轮能否均布装入）：<span class="fx">(z<sub>s</sub> + z<sub>r</sub>) / n = 整数</span><div class="where">式中：n — 行星轮个数。</div>把 z<sub>s</sub> 调成 19：条件变红，画面上行星轮与齿圈的齿对不上——实物装不进去。</li>
+    <li><b>邻接条件</b>（相邻行星轮齿顶圆不相碰）：<span class="fx">2a·sin(π/n) &gt; d<sub>a,p</sub> + (0.5~1mm)</span><div class="where">式中：a — 太阳轮与行星轮中心距，a = m(z<sub>s</sub>+z<sub>p</sub>)/2；d<sub>a,p</sub> — 行星轮齿顶圆直径，d<sub>a,p</sub> = m(z<sub>p</sub>+2)。左式是相邻两行星轮中心的弦距。</div>把 n 调到 5 或把 i 调小（行星轮变大），齿顶圆就会碰上。</li>
+  </ul>
+  <div class="io"><span class="tg out">输出</span><b>一组合格齿数 (z<sub>s</sub>, z<sub>p</sub>, z<sub>r</sub>)</b>。任一条件不满足 ⇒ 微调 z<sub>s</sub> 回到第 1 步重算。</div>
+
+  <h2><span class="tag">第 3 步</span>定尺寸：扭矩 → 模数、齿宽 → 全部直径</h2>
+  <div class="io"><span class="tg in">输入</span>输入扭矩 T₁（N·mm，来自电机额定/峰值扭矩）、合格齿数、齿宽系数 φ<sub>d</sub>（选定 0.4~0.7）、材料许用弯曲应力 σ<sub>FP</sub>。</div>
+  <div class="io"><span class="tg calc">计算</span>齿根弯曲强度估算模数：</div>
+  <div class="fx">m ≥ ∛( 2·K<sub>p</sub>·T₁·Y<sub>F</sub> / (φ<sub>d</sub>·n·z<sub>s</sub>²·σ<sub>FP</sub>) )</div>
+  <div class="where">式中：m — 模数（mm）；T₁ — 输入扭矩（N·mm）；n — 行星轮个数（扭矩由 n 个行星轮分担）；K<sub>p</sub> — 载荷分配不均系数（见第 5 步）；Y<sub>F</sub> — 齿形系数（≈2.5~2.9，查标准图）；φ<sub>d</sub> — 齿宽系数；σ<sub>FP</sub> — 许用弯曲应力（MPa）。</div>
+  <div class="io"><span class="tg calc">计算</span>模数取标准值后，全部尺寸随之确定：</div>
+  <div class="fx">b = φ<sub>d</sub>·m·z<sub>s</sub>　　d = m·z　　a = m(z<sub>s</sub>+z<sub>p</sub>)/2</div>
+  <div class="where">式中：b — 齿宽（mm）；d — 分度圆直径（mm），代入 z<sub>s</sub>/z<sub>p</sub>/z<sub>r</sub> 得三个齿轮的直径；a — 中心距（mm）。齿圈分度圆 + 齿根 + 轮缘即整机外径 D，须满足空间限制。</div>
+  <div class="io"><span class="tg out">输出</span><b>m、b，以及太阳轮/行星轮/内齿圈的全部分度圆、齿顶圆、齿根圆直径，中心距 a、整机外径 D</b>。D 超空间限制 ⇒ 减小 z<sub>s</sub>（配正变位）或改多级。</div>
+
+  <h2><span class="tag">第 4 步</span>变位：齿数已定 → 修形优化</h2>
+  <div class="io"><span class="tg in">输入</span>已定齿数与 m；z<sub>s</sub> &lt; 17 时为必做项。</div>
+  <div class="io"><span class="tg calc">计算</span>太阳轮取正变位（变位系数 x &gt; 0），齿圈相应负变位，保持中心距不变（高度变位）或按需要调整（角度变位）。</div>
+  <div class="where">x — 变位系数，刀具相对标准位置的移距与模数之比；x &gt; 0 正变位（齿根变壮、避免根切），x &lt; 0 负变位。变位还可使外啮合（凸-凸接触，弱）与内啮合（凸-凹接触，强）等强度。</div>
+  <div class="io"><span class="tg out">输出</span><b>各齿轮变位系数 x<sub>s</sub>、x<sub>p</sub>、x<sub>r</sub></b>。</div>
+
+  <h2><span class="tag">第 5 步</span>校核：全部参数 → 合格 / 返工</h2>
+  <div class="io"><span class="tg in">输入</span>第 1~4 步的全部参数 + 载荷 T₁、转速 n₁、材料热处理。</div>
+  <div class="io"><span class="tg calc">计算</span>按 GB/T 3480 / ISO 6336 校核两对啮合（太阳轮-行星轮、行星轮-齿圈）：</div>
+  <div class="fx">σ<sub>H</sub> ≤ σ<sub>HP</sub>　（齿面接触疲劳）　　σ<sub>F</sub> ≤ σ<sub>FP</sub>　（齿根弯曲疲劳）</div>
+  <div class="where">式中：σ<sub>H</sub>、σ<sub>F</sub> — 计算接触应力、计算弯曲应力（MPa）；σ<sub>HP</sub>、σ<sub>FP</sub> — 许用接触应力、许用弯曲应力（MPa），由材料、热处理与寿命系数决定。行星轮双侧啮合、受载次数多，是薄弱环节；且必须按"最累的那个行星轮"计入载荷分配不均系数 K<sub>p</sub>：</div>
+  <table>
+    <tr><th>均载措施</th><th>K<sub>p</sub>（n=3）</th></tr>
+    <tr><td>无浮动构件</td><td>1.4 ~ 1.8</td></tr>
+    <tr><td>太阳轮或内齿圈浮动均载</td><td>1.1 ~ 1.2</td></tr>
+  </table>
+  <div class="io"><span class="tg out">输出</span><b>判定结论</b>：合格 ⇒ 设计定型；不合格 ⇒ 加大 m 或 b，回第 3 步。</div>
+
+  <h2><span class="tag">第 6 步</span>补充：n 与均载的权衡</h2>
+  n 在第 1 步选定，但它同时影响两端：n 越多，每个行星轮分到的扭矩越小（第 3 步 m 可更小），但邻接条件越紧、且必须配浮动均载构件（太阳轮浮动 / 内齿圈浮动 / 行星架浮动）才能压低 K<sub>p</sub>。n=3 对加工装配误差最宽容，是默认选择。
+
+  <h2><span class="tag">总结</span>每个输出参数由谁决定</h2>
+  <table>
+    <tr><th>输出参数</th><th>由什么决定</th><th>怎么算</th></tr>
+    <tr><td>z<sub>r</sub></td><td>目标传动比 i*、z<sub>s</sub></td><td>z<sub>r</sub> = (i*−1)·z<sub>s</sub> 取整</td></tr>
+    <tr><td>z<sub>p</sub></td><td>z<sub>s</sub>、z<sub>r</sub>（同心条件）</td><td>z<sub>p</sub> = (z<sub>r</sub>−z<sub>s</sub>)/2</td></tr>
+    <tr><td>实际 i</td><td>取整后的齿数</td><td>i = 1 + z<sub>r</sub>/z<sub>s</sub></td></tr>
+    <tr><td>z<sub>s</sub>、n</td><td>人为选择 + 三条件校验</td><td>z<sub>s</sub>≥17、n=3，不过则微调</td></tr>
+    <tr><td>m</td><td>输入扭矩 T₁（弯曲强度）</td><td>m ≥ ∛(2K<sub>p</sub>T₁Y<sub>F</sub>/(φ<sub>d</sub>nz<sub>s</sub>²σ<sub>FP</sub>))，取标准值</td></tr>
+    <tr><td>b</td><td>φ<sub>d</sub>、m、z<sub>s</sub>（接触强度）</td><td>b = φ<sub>d</sub>·m·z<sub>s</sub></td></tr>
+    <tr><td>x</td><td>是否根切、等强度要求</td><td>z<sub>s</sub>&lt;17 必取正变位</td></tr>
+    <tr><td>a、各直径、外径 D</td><td>m 与齿数</td><td>d = m·z，a = m(z<sub>s</sub>+z<sub>p</sub>)/2</td></tr>
+    <tr><td>合格判定</td><td>强度校核</td><td>σ<sub>H</sub>≤σ<sub>HP</sub>，σ<sub>F</sub>≤σ<sub>FP</sub></td></tr>
+  </table>
+
+  <h2><span class="tag">附录</span>符号汇总</h2>
+  <table>
+    <tr><th>符号</th><th>含义</th><th>单位</th></tr>
+    <tr><td>i*、i</td><td>目标传动比、取整后的实际传动比（太阳轮转速 / 行星架转速，内齿圈固定）</td><td>—</td></tr>
+    <tr><td>T₁、n₁</td><td>输入扭矩（电机/太阳轮端）、输入转速</td><td>N·mm、rpm</td></tr>
+    <tr><td>z<sub>s</sub>、z<sub>p</sub>、z<sub>r</sub></td><td>太阳轮、行星轮、内齿圈齿数</td><td>—</td></tr>
+    <tr><td>n</td><td>行星轮个数（均布）</td><td>—</td></tr>
+    <tr><td>m</td><td>模数，齿的"粒度"，m = 齿距/π；分度圆 d = m·z</td><td>mm</td></tr>
+    <tr><td>α</td><td>压力角，标准值 20°（高承载可用 25°）</td><td>°</td></tr>
+    <tr><td>a</td><td>太阳轮与行星轮的中心距，a = m(z<sub>s</sub>+z<sub>p</sub>)/2</td><td>mm</td></tr>
+    <tr><td>d、d<sub>a,p</sub></td><td>分度圆直径；行星轮齿顶圆直径 d<sub>a,p</sub> = m(z<sub>p</sub>+2)</td><td>mm</td></tr>
+    <tr><td>D</td><td>整机外径（齿圈分度圆 + 齿根 + 轮缘）</td><td>mm</td></tr>
+    <tr><td>b、φ<sub>d</sub></td><td>齿宽；齿宽系数 φ<sub>d</sub> = b/(m·z<sub>s</sub>)（行星传动 0.4~0.7）</td><td>mm、—</td></tr>
+    <tr><td>x</td><td>变位系数，正变位强化齿根、避免根切</td><td>—</td></tr>
+    <tr><td>Y<sub>F</sub></td><td>齿形系数，弯曲强度估算用（≈2.5~2.9，查标准图）</td><td>—</td></tr>
+    <tr><td>σ<sub>H</sub>、σ<sub>F</sub></td><td>计算接触应力、计算弯曲应力</td><td>MPa</td></tr>
+    <tr><td>σ<sub>HP</sub>、σ<sub>FP</sub></td><td>许用接触应力、许用弯曲应力（由材料热处理与寿命定）</td><td>MPa</td></tr>
+    <tr><td>K<sub>p</sub></td><td>行星轮间载荷分配不均系数（1.1~1.8，取决于均载措施）</td><td>—</td></tr>
+  </table>
+</div>
+
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const W = 820, H = 820;
+const dpr = window.devicePixelRatio || 1;
+cv.width = W*dpr; cv.height = H*dpr;
+cv.style.width = W+'px'; cv.style.height = H+'px';
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+const $ = id => document.getElementById(id);
+const inv = x => Math.tan(x) - x;
+const ALPHA = 20*Math.PI/180;
+let paused = false, tAnim = 0, last = performance.now();
+let showAdj = true, showPitch = true;
+
+// ---------- 渐开线外齿轮轮廓（与 gear_param_demo 同源） ----------
+function gearOutline(m, z, bl, fl) {
+  const r = m*z/2, rb = r*Math.cos(ALPHA), ra = r + m, rf = r - 1.25*m;
+  const halfTooth = Math.PI/(2*z) - bl/(m*z);
+  const halfAng = R => (R <= rb) ? halfTooth + inv(ALPHA)
+                                 : halfTooth + inv(ALPHA) - inv(Math.acos(rb/R));
+  let rho = 0, delta = 0;
+  if (rf < rb - 0.02) {
+    rho = Math.min(fl, (rb - rf)*0.8, 0.45*m);
+    delta = Math.asin(rho/(rf + rho));
+  }
+  const b0 = halfTooth + inv(ALPHA);
+  const hTip = Math.max(halfAng(ra), 0.002);
+  const pts = [], pt = (R, ang) => [R*Math.cos(ang), R*Math.sin(ang)];
+  const Rlow = Math.max(rb, rf + rho*0.2);
+  for (let k = 0; k < z; k++) {
+    const Ak = k*2*Math.PI/z;
+    if (rho > 0.005) for (let s = 0; s <= 3; s++) {
+      const tt = s/3;
+      pts.push(pt(rf + rho*(1 - Math.cos(tt*Math.PI/2)), (Ak - b0 - delta) + tt*delta));
+    }
+    const NR = 12;
+    for (let s = 0; s <= NR; s++) pts.push(pt(Rlow + (ra-Rlow)*s/NR, Ak - halfAng(Rlow + (ra-Rlow)*s/NR)));
+    for (let s = 1; s <= 4; s++) pts.push(pt(ra, Ak - hTip + 2*hTip*s/4));
+    for (let s = NR; s >= 0; s--) pts.push(pt(Rlow + (ra-Rlow)*s/NR, Ak + halfAng(Rlow + (ra-Rlow)*s/NR)));
+    if (rho > 0.005) for (let s = 1; s <= 3; s++) {
+      const tt = s/3;
+      pts.push(pt(rf + rho*(1 - Math.cos((1-tt)*Math.PI/2)), (Ak + b0) + tt*delta));
+    }
+    const a1 = Ak + b0 + delta, a2 = Ak + 2*Math.PI/z - b0 - delta;
+    for (let s = 1; s <= 8; s++) pts.push(pt(rf, a1 + (a2-a1)*s/8));
+  }
+  return { pts, r, rb, ra, rf };
+}
+
+// ---------- 内齿圈轮廓：齿 = 同参数外齿轮的齿槽，齿顶朝内 ----------
+function ringOutline(m, z, rim) {
+  const r = m*z/2, rb = r*Math.cos(ALPHA);
+  const ra = r - m;          // 内齿轮齿顶圆（小半径，朝内）
+  const rf = r + 1.25*m;     // 内齿轮齿根圆（大半径）
+  // 内齿轮齿厚半角 = π/z − 外齿轮齿厚半角
+  const halfTooth = R => Math.PI/(2*z) - inv(ALPHA) + inv(Math.acos(rb/Math.max(R, rb)));
+  const Rtip = Math.max(ra, rb + 0.01);
+  const hRoot = halfTooth(rf), hTip = Math.max(halfTooth(Rtip), 0.002);
+  const pts = [], pt = (R, ang) => [R*Math.cos(ang), R*Math.sin(ang)];
+  const NR = 10;
+  for (let k = 0; k < z; k++) {
+    const Ak = k*2*Math.PI/z;
+    // 从根圆弧（逆时针侧）→ 左齿面下行到齿顶 → 齿顶弧 → 右齿面上行
+    const aArc0 = Ak - Math.PI/z, aArc1 = Ak - hRoot;
+    for (let s = 0; s <= 3; s++) pts.push(pt(rf, aArc0 + (aArc1-aArc0)*s/3));
+    for (let s = 0; s <= NR; s++) {
+      const R = rf + (Rtip - rf)*s/NR;
+      pts.push(pt(R, Ak - halfTooth(R)));
+    }
+    for (let s = 1; s <= 3; s++) pts.push(pt(Rtip, Ak - hTip + 2*hTip*s/3));
+    for (let s = NR; s >= 0; s--) {
+      const R = rf + (Rtip - rf)*s/NR;
+      pts.push(pt(R, Ak + halfTooth(R)));
+    }
+  }
+  return { pts, r, rb, ra: Rtip, rf, rOut: rf + rim };
+}
+
+// ---------- 绘制 ----------
+function pathPts(pts) {
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.closePath();
+}
+function drawGearAt(cx, cy, ppm, rot, g, holeR, fill) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(ppm, ppm);
+  pathPts(g.pts);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#dfe7ee'; ctx.lineWidth = 1.6/ppm; ctx.stroke();
+  if (holeR > 0) {
+    ctx.beginPath(); ctx.arc(0, 0, holeR, 0, 2*Math.PI);
+    ctx.fillStyle = '#141a23'; ctx.fill();
+    ctx.strokeStyle = '#9fb0c0'; ctx.lineWidth = 1/ppm; ctx.stroke();
+  }
+  if (showPitch) {
+    ctx.beginPath(); ctx.arc(0, 0, g.r, 0, 2*Math.PI);
+    ctx.strokeStyle = '#4aa3ff'; ctx.lineWidth = 0.8/ppm;
+    ctx.setLineDash([1.5, 1.5]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+function drawRing(cx, cy, ppm, rot, g) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(ppm, ppm);
+  ctx.beginPath();
+  ctx.arc(0, 0, g.rOut, 0, 2*Math.PI);
+  ctx.moveTo(g.pts[0][0], g.pts[0][1]);
+  g.pts.forEach(([x, y], i) => { if (i) ctx.lineTo(x, y); });
+  ctx.closePath();
+  ctx.fillStyle = '#5d6d7e'; ctx.fill('evenodd');
+  ctx.strokeStyle = '#dfe7ee'; ctx.lineWidth = 1.6/ppm; ctx.stroke();
+  if (showPitch) {
+    ctx.beginPath(); ctx.arc(0, 0, g.r, 0, 2*Math.PI);
+    ctx.strokeStyle = '#4aa3ff'; ctx.lineWidth = 0.8/ppm;
+    ctx.setLineDash([1.5, 1.5]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+function drawScaleBar(ppm) {
+  const mm = ppm >= 8 ? 5 : (ppm >= 3 ? 10 : 25);
+  ctx.strokeStyle = '#9fb0c0'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(20, H-30); ctx.lineTo(20 + mm*ppm, H-30);
+  ctx.moveTo(20, H-36); ctx.lineTo(20, H-24);
+  ctx.moveTo(20 + mm*ppm, H-36); ctx.lineTo(20 + mm*ppm, H-24);
+  ctx.stroke();
+  ctx.fillStyle = '#9fb0c0'; ctx.font = '12px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(mm + ' mm', 26 + mm*ppm, H-25);
+}
+
+// ---------- 配齿计算 ----------
+function design() {
+  const iT = +$('iT').value, zs = +$('zs').value, n = +$('np').value, m = +$('m').value;
+  // 同心条件：z_r = z_s + 2z_p，z_p 取整 ⇒ 自动满足，实际 i 随之取整
+  const zp = Math.max(4, Math.round(((iT - 1)*zs - zs)/2));
+  const zr = zs + 2*zp;
+  const iAct = 1 + zr/zs;
+  const a = m*(zs + zp)/2;
+  const asmOK = (zs + zr) % n === 0;
+  const clearAdj = 2*a*Math.sin(Math.PI/n) - m*(zp + 2);   // 相邻齿顶圆间隙
+  const adjOK = clearAdj >= 0.5;
+  return { iT, zs, n, m, zp, zr, iAct, a, asmOK, clearAdj, adjOK };
+}
+
+// ---------- 主循环 ----------
+function frame(now) {
+  const dt = Math.min((now - last)/1000, 0.05); last = now;
+  if (!paused) tAnim += dt;
+  const d = design(), zoom = +$('zoom').value;
+  const { zs, zp, zr, n, m, a, iAct } = d;
+
+  // 面板
+  $('vZoom').textContent = zoom.toFixed(1) + ' px/mm';
+  $('vI').textContent = d.iT.toFixed(1);
+  $('vZs').textContent = zs; $('vN').textContent = n; $('vM').textContent = m.toFixed(1) + ' mm';
+  $('rZp').textContent = zp; $('rZr').textContent = zr;
+  $('rIact').textContent = iAct.toFixed(2) + (Math.abs(iAct - d.iT) > 0.01 ? `（目标 ${d.iT.toFixed(1)}）` : '');
+  $('rA').textContent = a.toFixed(1) + ' mm';
+  $('rDout').textContent = 'Ø' + (2*(m*zr/2 + 1.25*m + Math.max(3*m, 2))).toFixed(1) + ' mm';
+  $('cCoax').textContent = '✓ 自动满足';
+  const asmEl = $('cAsm');
+  asmEl.textContent = d.asmOK ? `✓ (${zs}+${zr})/${n} = ${(zs+zr)/n}` : `✗ (${zs}+${zr})/${n} = ${((zs+zr)/n).toFixed(2)}`;
+  asmEl.className = d.asmOK ? 'ok' : 'warn';
+  const adjEl = $('cAdj');
+  adjEl.textContent = d.clearAdj >= 0 ? `${d.clearAdj.toFixed(2)} mm ${d.adjOK ? '✓' : '⚠ 偏小'}` : `${d.clearAdj.toFixed(2)} mm ✗ 相碰！`;
+  adjEl.className = d.adjOK ? 'ok' : 'warn';
+  const ucEl = $('cUc');
+  ucEl.textContent = zs >= 17 ? '✓ 不根切' : '⚠ 需正变位';
+  ucEl.className = zs >= 17 ? 'ok' : 'warn';
+  const wall = m*zp/2 - 1.25*m - 0.4*(m*zp/2 - 1.25*m);
+  const wallEl = $('cWall');
+  wallEl.textContent = wall >= 2.5*m ? `✓ ${wall.toFixed(1)} mm` : `⚠ ${wall.toFixed(1)} mm`;
+  wallEl.className = wall >= 2.5*m ? 'ok' : 'warn';
+
+  // 运动学：内齿圈固定，ω_c = ω_s / i，ω_p = ω_c − (ω_s−ω_c)·z_s/z_p
+  const ws = 0.9, thS = ws*tAnim;
+  const thC = thS / iAct;
+  const wp = (ws/iAct) - (ws - ws/iAct)*zs/zp;
+
+  const gs = gearOutline(m, zs, 0.04, 0.2);
+  const gp = gearOutline(m, zp, 0.04, 0.2);
+  const rim = Math.max(3*m, 2);
+  const gr = ringOutline(m, zr, rim);
+
+  ctx.clearRect(0, 0, W, H);
+  const cx = W/2, cy = H/2;
+  drawScaleBar(zoom);
+
+  // 行星轮初始相位：与太阳轮在 φk0 方向正确啮合（齿对槽）
+  const pitchS = 2*Math.PI/zs, pitchP = 2*Math.PI/zp;
+  const planets = [];
+  for (let k = 0; k < n; k++) {
+    const phi0 = k*2*Math.PI/n;
+    const u = ((phi0 % pitchS) + pitchS) % pitchS;      // 太阳轮在该方向的齿相位
+    const thP0 = (phi0 + Math.PI - Math.PI/zp) + u*zs/zp;
+    planets.push({ phi: phi0 + thC, rot: thP0 + wp*tAnim, thP0 });
+  }
+  // 内齿圈固定：相位只取 t=0 时与 0 号行星轮在 φ=0 方向的啮合关系（常量）
+  const v0 = ((0 - planets[0].thP0) % pitchP + pitchP) % pitchP;
+  const thR = (-Math.PI/zr) - v0*zp/zr;   // φ0=0
+
+  // 绘制：内齿圈 → 行星架 → 行星轮 → 太阳轮
+  drawRing(cx, cy, zoom, thR, gr);
+
+  // 行星架（半透明三角/多边形 + 中心轮毂）
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.beginPath();
+  planets.forEach((p, i) => {
+    const x = Math.cos(p.phi)*a*zoom, y = Math.sin(p.phi)*a*zoom;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(124,196,255,0.10)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(124,196,255,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, gs.rf*zoom*0.55, 0, 2*Math.PI);
+  ctx.fillStyle = 'rgba(124,196,255,0.14)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(124,196,255,0.55)'; ctx.stroke();
+  ctx.restore();
+
+  planets.forEach(p => {
+    const px = cx + Math.cos(p.phi)*a*zoom, py = cy + Math.sin(p.phi)*a*zoom;
+    const holeR = Math.max(0.4*(gp.rf), 1.5*m);
+    drawGearAt(px, py, zoom, p.rot, gp, holeR, '#4e6d5e');
+  });
+  drawGearAt(cx, cy, zoom, thS, gs, m*zs*0.12, '#6d7d8e');
+
+  // 邻接间隙检查：齿顶圆（红虚线）+ 相邻中心连线
+  if (showAdj) {
+    ctx.strokeStyle = d.adjOK ? 'rgba(255,90,90,0.7)' : '#ff5a5a';
+    ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+    planets.forEach(p => {
+      const px = cx + Math.cos(p.phi)*a*zoom, py = cy + Math.sin(p.phi)*a*zoom;
+      ctx.beginPath(); ctx.arc(px, py, gp.ra*zoom, 0, 2*Math.PI); ctx.stroke();
+    });
+    for (let k = 0; k < n; k++) {
+      const p1 = planets[k], p2 = planets[(k+1)%n];
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(p1.phi)*a*zoom, cy + Math.sin(p1.phi)*a*zoom);
+      ctx.lineTo(cx + Math.cos(p2.phi)*a*zoom, cy + Math.sin(p2.phi)*a*zoom);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle = d.adjOK ? '#8ef0c1' : '#ff8a8a';
+    ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(d.adjOK ? `邻接间隙 ${d.clearAdj.toFixed(2)} mm ✓`
+                         : `邻接间隙 ${d.clearAdj.toFixed(2)} mm ✗ 齿顶相碰`, cx, H-16);
+  }
+
+  // 标注
+  ctx.fillStyle = '#9fb0c0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`太阳轮 zs=${zs}（输入）　行星轮 zp=${zp} ×${n}　内齿圈 zr=${zr}（固定）　i = ${iAct.toFixed(2)}`, cx, 26);
+  ctx.fillStyle = '#7cc4ff';
+  ctx.fillText('半透明三角 = 行星架（输出）', cx, 46);
+
+  requestAnimationFrame(frame);
+}
+
+$('btnPause').onclick = e => { paused = !paused; e.target.textContent = paused ? '继续' : '暂停'; };
+$('btnAdj').onclick = e => { showAdj = !showAdj; e.target.classList.toggle('on', showAdj); };
+$('btnPitch').onclick = e => { showPitch = !showPitch; e.target.classList.toggle('on', showPitch); };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
