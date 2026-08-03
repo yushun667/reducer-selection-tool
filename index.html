@@ -688,7 +688,9 @@ function design() {
         const s1 = oneStage(i1, T1, P);              // 手动 z_s 时尊重用户配置
         const zcNeed = T2req/(T1*s1.iAct*ETA*ETA2);
         if (zcNeed > 87) continue;                    // 该 i₁ 下摆线级吃不下
-        const zc = Math.min(Math.max(9, Math.ceil(zcNeed)), 87);
+        // 双摆线盘 180° 错相安装要求 z_c 为奇数（z_针=z_c+1 为偶数），否则第二片轮与针齿干涉
+        let zc = Math.min(Math.max(9, Math.ceil(zcNeed)), 87);
+        if (zc % 2 === 0) zc = Math.min(zc + 1, 87);
         const iTot = s1.iAct*zc;
         const score = Math.abs(iTot - iStar2)/iStar2;
         if (!best || score < best.score) best = { s1, zcNeed, zc, iTot, score };
@@ -928,7 +930,7 @@ function frame(now) {
     setRO('rvS1S', `${s1.sigF.toFixed(0)} / ${s1.sigH.toFixed(0)} MPa ${s1.sigF <= d.sFP && s1.sigH <= d.sHP ? '✓' : '✗'}`,
           s1.sigF <= d.sFP && s1.sigH <= d.sHP ? 'ok' : 'warn');
     setRO('rvMid', `${d.rv.Tin2.toFixed(2)} N·m · ${d.rv.nin2.toFixed(0)} rpm`);
-    setRO('rvZ', d.rv.zc + (d.rv.overflow ? ' ✗ 需求超出单台 RV（z_c>87）' : ''));
+    setRO('rvZ', `${d.rv.zc}（奇数：双盘 180° 错相必需）${d.rv.overflow ? ' ✗ 需求超出单台 RV（z_c>87）' : ''}`);
     setRO('rvZp', d.rv.zpin);
     setRO('rvE', `${mm2(d.rv.e)}（K₁=${d.rv.k1Used.toFixed(2)}${Math.abs(d.rv.k1Used - d.cK1) > 1e-9 ? '，已自动下调' : ''}）`);
     setRO('rvPd', mm2(d.rv.dPin) + '（标准滚子）');
