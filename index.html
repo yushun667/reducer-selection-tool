@@ -23,6 +23,10 @@
   .row input[type=range] { width:150px; }
   .unit { color:#8b98a8; font-size:11.5px; width:44px; }
   .note { font-size:11.5px; color:#8b98a8; margin-top:2px; line-height:1.5; }
+  #xtip { position:fixed; z-index:99; max-width:380px; background:#0d1219; color:#dde3ea;
+          border:1px solid #3a4656; border-radius:8px; padding:8px 12px; font-size:12px;
+          line-height:1.65; pointer-events:none; display:none;
+          box-shadow:0 4px 16px rgba(0,0,0,0.55); }
   .ro { display:flex; justify-content:space-between; padding:2px 0; font-size:12.5px; }
   .ro span { color:#c4cfdb; }
   .ro b { color:#8ef0c1; font-weight:600; text-align:right; }
@@ -771,12 +775,24 @@ const TIPS = {
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
   rvTot: 'RV 总传动比 = i₁ × z_c，与需求偏差应 ≤5%（z_c 只能取整数，偏差不可避免）。偏差大 ⇒ 调整 T₁/T₂ 需求或接受转速误差。',
 };
+// 自绘悬停提示：悬停立即显示（原生 title 有系统延迟，弃用）
+const tipEl = document.createElement('div');
+tipEl.id = 'xtip';
+document.body.appendChild(tipEl);
+function tipPos(e) {
+  tipEl.style.display = 'block';
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  tipEl.style.left = Math.max(4, Math.min(e.clientX + 14, window.innerWidth - w - 8)) + 'px';
+  tipEl.style.top = Math.max(4, Math.min(e.clientY + 14, window.innerHeight - h - 8)) + 'px';
+}
 for (const [id, tip] of Object.entries(TIPS)) {
   const b = $(id);
-  if (b && b.parentElement) {
-    b.parentElement.title = tip;
-    b.parentElement.style.cursor = 'help';
-  }
+  if (!b || !b.parentElement) continue;
+  const row = b.parentElement;
+  row.style.cursor = 'help';
+  row.addEventListener('mouseenter', e => { tipEl.textContent = tip; tipPos(e); });
+  row.addEventListener('mousemove', tipPos);
+  row.addEventListener('mouseleave', () => { tipEl.style.display = 'none'; });
 }
 
 // ---------- 方案 B：摆线减速器示意图（针齿固定黄 / 摆线轮灰 / 输出柱销绿） ----------
