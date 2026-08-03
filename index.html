@@ -171,6 +171,7 @@
     <div class="ro"><span>minimum Pressure angle（插件算法复算）</span><b id="rvPA"></b></div>
     <div class="ro"><span>摆线曲线有效性（无奇异点）</span><b id="rvValid"></b></div>
     <div class="ro"><span>摆线轮外缘 / 针齿外缘 ≤ 壳体</span><b id="rvRim"></b></div>
+    <div class="ro"><span>摆线轮厚度 b<sub>c</sub>（接触强度+结构下限）</span><b id="rvTh"></b></div>
     <div class="hd">Optionary param ① · Cycloidal gear center hole（摆线轮中心孔）</div>
     <div class="ro"><span>Draw center hole 绘制中心孔</span><b>☑ 勾选</b></div>
     <div class="ro"><span>Diameter 中心孔径（= 输入轴直径）</span><b id="rvCh"></b></div>
@@ -253,6 +254,7 @@
       <tr><td>Ring pin diameter 针齿套外径（标准滚子）</td><td><b id="cyPd"></b></td></tr>
       <tr><td>Ring pin pitch diameter 针齿节圆直径</td><td><b id="cyDp"></b></td></tr>
       <tr><td>Cycloidal curve plot num 描绘点数/齿</td><td>30</td></tr>
+      <tr><td>Cycloidal gear thickness 摆线轮厚度</td><td><b id="cyTh"></b></td></tr>
       <tr><td>minimum Pressure angle 最小压力角（只读）</td><td><b id="cyPA"></b></td></tr>
       <tr><td>Center hole Diameter 中心孔径</td><td><b id="cyCh"></b></td></tr>
       <tr><td>Hole num 轮盘孔数</td><td><b id="cyOn"></b></td></tr>
@@ -715,10 +717,17 @@ function design() {
       const maxR = Math.max(...cyc.pts.map(([x, y]) => Math.hypot(x, y)));
       const outerDisc = e + maxR, outerPins = Dp/2 + dPin/2, shellR = Dmax/2;
       const rimOK = outerDisc <= shellR && outerPins <= shellR;
+      // 摆线轮厚度：针齿最大接触力 F_max ≈ 4T₂/(K₁·z_c·R_p)，线接触简化
+      // σ_H = Z_E·√(F/(b·d_套)) ≤ σ_HP ⇒ b ≥ F·Z_E²/(σ_HP²·d_套)；结构下限 0.1·D_p
+      const T2mm = T1*s1.iAct*zc*ETA*ETA2;
+      const Fmax = 4*T2mm/(k1Used*zc*(Dp/2));
+      const bStr = Fmax*189.8*189.8/(sHP*sHP*dPin);
+      const bCyc = Math.ceil(Math.max(bStr, 0.1*Dp)*2)/2;   // 向上取整到 0.5mm
       rv = { s1, zc, zpin: zc + 1, Dp, dPin, e, k1Used, iStar2,
              nOut: 6, Dop: 0.5*Dp, dOut: dOut0, tP, tO,
              pinCore: dPin - 2*tP, outCore: dOut0 - 2*tO,
              maxR, outerDisc, outerPins, shellR, rimOK,
+             Fmax, bStr, bCyc,
              zcNeed, overflow: zcNeed > 87,
              iTot,
              T2: T1/1000*s1.iAct*zc*ETA*ETA2,
@@ -930,6 +939,7 @@ function frame(now) {
     setRO('rvRim', d.rv.rimOK ? `✓ 轮 Ø${(2*d.rv.outerDisc).toFixed(1)} / 针 Ø${(2*d.rv.outerPins).toFixed(1)} ≤ 壳体 Ø${d.Dmax}`
                               : `✗ 轮 Ø${(2*d.rv.outerDisc).toFixed(1)} 或 针 Ø${(2*d.rv.outerPins).toFixed(1)} 超出壳体 Ø${d.Dmax}`,
           d.rv.rimOK ? 'ok' : 'warn');
+    setRO('rvTh', `${mm2(d.rv.bCyc)}（强度需 ${d.rv.bStr.toFixed(2)}mm，F_max=${d.rv.Fmax.toFixed(0)}N；双盘时每盘一半）`);
     setRO('rvCh', mm2(d.shaft));
     setRO('rvOn', d.rv.nOut);
     setRO('rvOp', mm2(d.rv.Dop));
@@ -972,6 +982,7 @@ function frame(now) {
     $('cyPd').textContent = mm2(d.rv.dPin) + '（标准滚子）';
     $('cyDp').textContent = mm2(d.rv.Dp);
     $('cyPA').textContent = d.rv.paDeg.toFixed(1) + '°';
+    $('cyTh').textContent = mm2(d.rv.bCyc) + '（双盘减半）';
     $('cyCh').textContent = mm2(d.shaft);
     $('cyOn').textContent = d.rv.nOut;
     $('cyHd').textContent = mm2(d.rv.dOut + 2*d.rv.e);
