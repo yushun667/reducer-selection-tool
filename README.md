@@ -9,8 +9,10 @@
 
 ## 快速开始
 
-- **直接用**：双击 `index.html`（macOS 也可双击 `启动工具.command`）
+- **原生桌面应用（macOS，Apple Silicon）**：从 [Releases](../../releases) 下载 `减速器选型工具.zip`，解压后把 `.app` 拖入"应用程序"。首次打开如提示"无法验证开发者"，在 系统设置 → 隐私与安全性 点"仍要打开"。
+- **直接用浏览器**：双击 `index.html`（Windows / Linux / macOS 均可，无需安装）
 - **或本地起服务**：`python3 -m http.server 8000`，浏览器打开 `http://localhost:8000`
+- **自行构建 .app**：`bash app/build-app.sh`（仅用 macOS 自带的 swiftc / sips / iconutil，无第三方依赖），产物在 `dist/减速器选型工具.app`
 - 原理讲解页：打开 `planetary_gear_params.html`（工具内顶部有链接）
 
 ## 输入 → 输出
@@ -53,14 +55,19 @@
 reducer-selection-tool/
 ├── index.html                  # 主工具（双击即用）
 ├── planetary_gear_params.html  # 行星齿轮参数确定 · 原理讲解（交互演示）
-├── 启动工具.command            # macOS 双击启动器
+├── app/
+│   ├── main.swift              # WKWebView 原生壳源码
+│   ├── Info.plist              # .app 元信息
+│   └── build-app.sh            # 一键构建 .app（仅系统自带工具链）
+├── 启动工具.command            # macOS 双击启动器（浏览器方式）
 ├── LICENSE
 └── README.md
 ```
 
 ## Roadmap
 
-- [ ] Electron / Tauri 打包为原生桌面应用
+- [x] 原生桌面应用（macOS .app，Swift WKWebView 壳）
+- [ ] Windows / Linux 原生打包（Tauri）
 - [ ] NW / NGWN 构型支持
 - [ ] 双摆线盘、变位系数支持
 - [ ] GB/T 3480 完整校核模块

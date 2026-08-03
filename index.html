@@ -130,6 +130,7 @@
     <div class="ro"><span>分度圆 / 齿顶圆（内）/ 齿根圆</span><b id="dR"></b></div>
     <div class="hd">整机</div>
     <div class="ro"><span>中心距 a</span><b id="rA"></b></div>
+    <div class="ro"><span>行星轮定位：分布圆 Ø / 均布角度</span><b id="rPos"></b></div>
     <div class="ro"><span>内齿圈外径（实际，含轮缘）</span><b id="rD"></b></div>
   </div>
   <div class="grp out">
@@ -843,6 +844,7 @@ function frame(now) {
   setRO('dP', `${f1(d.dp)} / ${f1(d.dp+2*m)} / ${f1(d.dp-2.5*m)} mm`);
   setRO('dR', `${f1(d.dr)} / ${f1(d.dr-2*m)} / ${f1(d.dr+2.5*m)} mm`);
   setRO('rA', a.toFixed(2) + ' mm');
+  setRO('rPos', `Ø${(2*a).toFixed(2)} mm / ${(360/n).toFixed(0)}° 均布 ×${n}`);
   setRO('rD', `${f1(d.D)}（= 给定值，轮缘 ${d.rim.toFixed(1)}mm）`);
   setRO('cAsm', d.asm ? `✓ (${zs}+${zr})/${n}=${(zs+zr)/n}` : `✗ (${zs}+${zr})/${n}=${((zs+zr)/n).toFixed(2)}`, d.asm ? 'ok' : 'warn');
   setRO('cAdj', `${d.clearAdj.toFixed(2)} mm ${d.clearAdj >= 0.5 ? '✓' : '✗'}`, d.clearAdj >= 0.5 ? 'ok' : 'warn');
