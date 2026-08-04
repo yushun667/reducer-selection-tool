@@ -48,7 +48,7 @@
 </style>
 </head>
 <body>
-<h1>行星减速器参数计算器（NGW：内齿圈固定 · 太阳轮输入 · 行星架输出）</h1>
+<h1>行星 / RV 减速器参数计算器（单级 NGW：内齿圈固定 · RV：2K-V 一体化，无内齿圈）</h1>
 <div class="sub">输入需求（传动比、扭矩、空间）与经验选择，实时输出全套几何参数和校核结论。原理解释见 <a href="planetary_gear_params.html">planetary_gear_params.html</a>。所有校核为<b>简化估算</b>，定型前须按 GB/T 3480 完整校核。</div>
 <div id="cvcol">
 <canvas id="cv" width="700" height="700"></canvas>
@@ -60,7 +60,7 @@
     <div class="row"><label>输入扭矩 T₁（电机端）</label><input id="T1" type="number" min="0.01" max="100" step="0.05" value="0.15"><span class="unit">N·m</span></div>
     <div class="row"><label>要求输出扭矩 T₂</label><input id="T2req" type="number" min="0.05" max="500" step="0.05" value="0.87"><span class="unit">N·m</span></div>
     <div class="row"><label>输入转速 n₁</label><input id="n1" type="number" min="100" max="20000" step="100" value="3000"><span class="unit">rpm</span></div>
-    <div class="row"><label>内齿圈外径（给定尺寸）</label><input id="Dmax" type="number" min="20" max="300" step="5" value="60"><span class="unit">mm</span></div>
+    <div class="row"><label>给定外径（单级=内齿圈，RV=针齿壳）</label><input id="Dmax" type="number" min="20" max="300" step="5" value="60"><span class="unit">mm</span></div>
     <div class="row"><label>输入轴直径（太阳轮孔径）</label><input id="shaft" type="number" min="1" max="30" step="0.5" value="2"><span class="unit">mm</span></div>
     <div class="note">传动比不再直接输入，由 i* = T₂/(T₁·η) 反推，η 取 0.97。</div>
   </div>
@@ -97,7 +97,6 @@
     <div class="hd">摆线级经验系数（RV 模式，可按需调整）</div>
     <div class="row"><label>针齿节圆比 D<sub>p</sub>/D</label><input id="cDp" type="number" min="0.5" max="0.95" step="0.05" value="0.8"><span class="unit">0.7~0.9</span></div>
     <div class="row"><label>短幅系数 K₁</label><input id="cK1" type="number" min="0.25" max="0.75" step="0.05" value="0.6"><span class="unit">0.5~0.75</span></div>
-    <div class="row"><label>柱销直径比 d/D<sub>p</sub></label><input id="cOut" type="number" min="0.05" max="0.2" step="0.01" value="0.12"><span class="unit">0.08~0.15</span></div>
     <div class="row"><label>滚套壁厚比 t/d</label><input id="cT" type="number" min="0.05" max="0.3" step="0.01" value="0.15"><span class="unit">≥0.5mm</span></div>
     <div class="note">K₁ 会在压力角 &lt;30° 或有奇异点时自动下调（步进 0.05 至 0.25）。</div>
   </div>
@@ -130,23 +129,23 @@
     <div class="ro"><span>分度圆 / 齿顶圆 / 齿根圆</span><b id="dS"></b></div>
     <div class="hd">行星轮</div>
     <div class="ro"><span>分度圆 / 齿顶圆 / 齿根圆</span><b id="dP"></b></div>
-    <div class="hd">内齿圈</div>
+    <div class="hd" id="hdR">内齿圈</div>
     <div class="ro"><span>分度圆 / 齿顶圆（内）/ 齿根圆</span><b id="dR"></b></div>
     <div class="hd">整机</div>
     <div class="ro"><span>中心距 a</span><b id="rA"></b></div>
     <div class="ro"><span>行星轮定位：分布圆 Ø / 均布角度</span><b id="rPos"></b></div>
-    <div class="ro"><span>内齿圈外径（实际，含轮缘）</span><b id="rD"></b></div>
+    <div class="ro"><span>给定外径（实际，含轮缘/壳壁）</span><b id="rD"></b></div>
   </div>
   <div class="grp out">
     <h3>输出 · 校核结论</h3>
-    <div class="ro"><span>装配条件 (z<sub>s</sub>+z<sub>r</sub>)/n 整数</span><b id="cAsm"></b></div>
+    <div class="ro"><span id="cAsmL">装配条件 (z<sub>s</sub>+z<sub>r</sub>)/n 整数</span><b id="cAsm"></b></div>
     <div class="ro"><span>邻接间隙（≥0.5mm）</span><b id="cAdj"></b></div>
     <div class="ro"><span>太阳轮根切（z<sub>s</sub>≥17）</span><b id="cUc"></b></div>
     <div class="ro"><span>弯曲安全系数 S<sub>F</sub> ≥ 1.4</span><b id="cF"></b></div>
     <div class="ro"><span>接触安全系数 S<sub>H</sub> ≥ 1.1</span><b id="cH"></b></div>
     <div class="ro"><span>模数是否装得进给定外径</span><b id="cD"></b></div>
     <div class="ro"><span>强度是否足够（m ≥ m<sub>est</sub>）</span><b id="cMest"></b></div>
-    <div class="ro"><span>行星轮轴承（标准件，孔=外圈）</span><b id="cWall"></b></div>
+    <div class="ro"><span id="cWallL">行星轮轴承（标准件，孔=外圈）</span><b id="cWall"></b></div>
     <div class="ro"><span>输入轴轴承（标准内径）</span><b id="cBrg"></b></div>
     <div class="ro"><span>太阳轮孔壁厚（强度需求，电机轴径）</span><b id="cWallS"></b></div>
     <div class="note">任一红项 ⇒ 加大内齿圈外径、换更高强度材料、减小 φ<sub>d</sub>、降低扭矩需求，或改用下面的 RV 方案。</div>
@@ -156,42 +155,33 @@
     <div class="note" id="noRVMsg" style="color:#ff8a8a"></div>
   </div>
   <div class="grp out" id="grpRV" style="display:none">
-    <h3>输出 · RV 减速器（行星级 + 摆线级串联，单级不满足时）</h3>
-    <div class="hd">第一级 · 行星（太阳轮输入，i₁ 取小减速比）</div>
-    <div class="ro"><span>z<sub>s</sub> / z<sub>p</sub> / z<sub>r</sub> ・ m / b / i₁</span><b id="rvS1"></b></div>
-    <div class="ro"><span>σ<sub>F</sub> / σ<sub>H</sub></span><b id="rvS1S"></b></div>
-    <div class="ro"><span>行星级输出（→ 第二级输入）</span><b id="rvMid"></b></div>
-    <div class="hd">第二级 · 摆线针轮（行星架→偏心轴，i₂ = z<sub>c</sub>）</div>
-    <div class="ro"><span>Raducation ratio（= 摆线轮齿数 z<sub>c</sub>）</span><b id="rvZ"></b></div>
-    <div class="ro"><span>针齿数（= z<sub>c</sub>+1，插件固定结构）</span><b id="rvZp"></b></div>
-    <div class="ro"><span>Eccentric amount</span><b id="rvE"></b></div>
-    <div class="ro"><span>Ring pin diameter</span><b id="rvPd"></b></div>
-    <div class="ro"><span>Ring pin pitch diameter</span><b id="rvDp"></b></div>
-    <div class="ro"><span>Cycloidal curve plot num</span><b>30</b></div>
-    <div class="ro"><span>minimum Pressure angle（插件算法复算）</span><b id="rvPA"></b></div>
+    <h3>输出 · 真实 RV 减速器（2K-V：渐开线行星 + 摆线针轮一体化）</h3>
+    <div class="hd">第一级 · 渐开线行星（太阳轮输入，行星轮轴 = 曲轴，无内齿圈）</div>
+    <div class="ro"><span>z<sub>s</sub> / z<sub>p</sub> ・ 齿比 u=z<sub>p</sub>/z<sub>s</sub> ・ m / b</span><b id="rvS1"></b></div>
+    <div class="ro"><span>σ<sub>F</sub> / σ<sub>H</sub>（行星级，仅承输入扭矩）</span><b id="rvS1S"></b></div>
+    <div class="ro"><span>曲轴扭矩（每根，= T₁·z<sub>p</sub>/(n·z<sub>s</sub>)）</span><b id="rvCrankT"></b></div>
+    <div class="hd">第二级 · 摆线针轮（针齿壳固定，双摆线轮 180° 错相，行星架输出）</div>
+    <div class="ro"><span>摆线轮齿数 z<sub>c</sub>（奇数）</span><b id="rvZ"></b></div>
+    <div class="ro"><span>针齿数（= z<sub>c</sub>+1，偶数）</span><b id="rvZp"></b></div>
+    <div class="ro"><span>Eccentric amount 偏心距 e（曲轴偏心量）</span><b id="rvE"></b></div>
+    <div class="ro"><span>Ring pin diameter 针齿（套外径）</span><b id="rvPd"></b></div>
+    <div class="ro"><span>Ring pin pitch diameter 针齿节圆</span><b id="rvDp"></b></div>
+    <div class="ro"><span>minimum Pressure angle 最小压力角</span><b id="rvPA"></b></div>
     <div class="ro"><span>摆线曲线有效性（无奇异点）</span><b id="rvValid"></b></div>
     <div class="ro"><span>摆线轮外缘 / 针齿外缘 ≤ 壳体</span><b id="rvRim"></b></div>
-    <div class="ro"><span>摆线轮厚度 b<sub>c</sub>（接触强度+结构下限）</span><b id="rvTh"></b></div>
-    <div class="hd">Optionary param ① · Cycloidal gear center hole（摆线轮中心孔）</div>
-    <div class="ro"><span>Draw center hole 绘制中心孔</span><b>☑ 勾选</b></div>
-    <div class="ro"><span>Diameter 中心孔径（= 输入轴直径）</span><b id="rvCh"></b></div>
-    <div class="hd">Optionary param ② · Cycloidal gear to output disk（摆线轮→输出盘）</div>
-    <div class="ro"><span>Draw around hole 绘制轮盘孔</span><b>☑ 勾选</b></div>
-    <div class="ro"><span>Draw output disk pin 绘制输出盘柱销</span><b>☑ 勾选</b></div>
-    <div class="ro"><span>Set about 参数基准</span><b>Cycloidal gear hole 轮盘孔</b></div>
-    <div class="ro"><span>Hole num 孔数（= 柱销数）</span><b id="rvOn"></b></div>
-    <div class="ro"><span>Hole diameter 孔径（= 柱销+2e）</span><b id="rvHd"></b></div>
-    <div class="ro"><span>Position diameter 孔/销分布圆直径</span><b id="rvOp"></b></div>
-    <div class="ro"><span>Output disk pin diameter 柱销直径</span><b id="rvPd2"></b></div>
-    <div class="hd">销套与轴承配合</div>
-    <div class="ro"><span>针齿 = 销 + 套（套外径参与啮合）</span><b id="rvPinC"></b></div>
-    <div class="ro"><span>输出柱销 = 销 + 套</span><b id="rvOutC"></b></div>
+    <div class="ro"><span>摆线轮厚度 b<sub>c</sub>（接触强度，承输出扭矩）</span><b id="rvTh"></b></div>
+    <div class="ro"><span>针齿 = 销 + 套（标准滚子）</span><b id="rvPinC"></b></div>
+    <div class="hd">曲轴（行星轮轴）· 标准轴承</div>
+    <div class="ro"><span>曲轴轴颈 Ø（= 行星轮孔 = 标准轴承内径）</span><b id="rvCrank"></b></div>
+    <div class="ro"><span>曲轴轴承（支承与摆线轮孔同型号）</span><b id="rvCrankB"></b></div>
+    <div class="ro"><span>曲轴弯曲应力（简化校核）</span><b id="rvCrankS"></b></div>
+    <div class="ro"><span>摆线轮曲轴孔：孔数 / 分布圆 / 孔径</span><b id="rvDiscH"></b></div>
     <div class="ro"><span>输入轴轴承（标准内径）</span><b id="rvBrg"></b></div>
     <div class="hd">整机</div>
-    <div class="ro"><span>总传动比 i = i₁ × z<sub>c</sub></span><b id="rvTot"></b></div>
+    <div class="ro"><span>总传动比 i = 1 + (z<sub>p</sub>/z<sub>s</sub>)·(z<sub>c</sub>+1)</span><b id="rvTot"></b></div>
     <div class="ro"><span>输出转速 n₂</span><b id="rvN2"></b></div>
     <div class="ro"><span>输出扭矩 T₂ = T₁·i·η₁η₂</span><b id="rvI"></b></div>
-    <div class="note">真实 RV 结构：第一级行星架与第二级偏心轴（曲柄轴）一体，两级共用同一给定外径壳体。摆线级为几何估算：针齿节圆=0.8×给定外径，针齿≈半节距，偏心距按短幅系数 K₁=0.6，柱销≈0.12·D_p；压力角与有效性按插件源码同款公式复算，强度需另行校核。摆线轮建模用已安装的 CycloidalDrive 插件（Fusion 360 → 工具 → 附加模块 → 脚本），按上表输入即可。</div>
+    <div class="note">真实 RV 结构（纳博型）：无内齿圈、无输出柱销盘。行星轮压在曲轴上，曲轴偏心段装两片摆线轮（180° 错相）；摆线轮与固定针齿壳啮合，<b>行星架即输出端</b>。速比为差动关系 i = 1+(z_p/z_s)·(z_c+1)（例：纳博 RV-40E-121 = 1+3×40），不是两级相乘。摆线级承受几乎全部输出扭矩（约半数针齿同时承载），是整机刚度的主要来源；行星级只传输入级小扭矩，故模数可小。<b>渐开线级与摆线级轴向错开布置</b>，俯视图中行星轮与针齿的径向重叠不干涉。校核为简化估算，定型前须按标准完整校核。</div>
   </div>
 </div>
 <div class="grp out cad">
@@ -229,7 +219,7 @@
       <tr><td>Pitch Diameter 分度圆直径</td><td><b id="cpPitch"></b></td></tr>
     </table>
     </div>
-    <div class="g">
+    <div class="g" id="grpRingC">
     <div class="hd">内齿圈 Ring Gear ×1</div>
     <table class="tbl">
       <tr><td>Part Name 零件名</td><td><b id="crName"></b></td></tr>
@@ -246,7 +236,7 @@
     </table>
     </div>
     <div class="g" id="grpCycC" style="display:none">
-    <div class="hd">摆线轮 Cycloidal Gear ×1（CycloidalDrive 插件）</div>
+    <div class="hd">摆线轮 Cycloidal Gear ×2（180° 错相 · CycloidalDrive 插件）</div>
     <table class="tbl">
       <tr><td>Part Name 零件名</td><td><b id="cyName"></b></td></tr>
       <tr><td>Raducation ratio 减速比（= z<sub>c</sub>）</td><td><b id="cyZ"></b></td></tr>
@@ -256,19 +246,19 @@
       <tr><td>Cycloidal curve plot num 描绘点数/齿</td><td>30</td></tr>
       <tr><td>Cycloidal gear thickness 摆线轮厚度</td><td><b id="cyTh"></b></td></tr>
       <tr><td>minimum Pressure angle 最小压力角（只读）</td><td><b id="cyPA"></b></td></tr>
-      <tr><td>Center hole Diameter 中心孔径</td><td><b id="cyCh"></b></td></tr>
-      <tr><td>Hole num 轮盘孔数</td><td><b id="cyOn"></b></td></tr>
-      <tr><td>Hole diameter 轮盘孔径（= 柱销+2e）</td><td><b id="cyHd"></b></td></tr>
-      <tr><td>Position diameter 孔/销分布圆直径</td><td><b id="cyOp"></b></td></tr>
-      <tr><td>Output disk pin diameter 柱销直径</td><td><b id="cyPin"></b></td></tr>
+      <tr><td>Center hole Diameter 中心孔（可选）</td><td><b id="cyCh"></b></td></tr>
+      <tr><td>Hole num 曲轴孔数（= 行星轮数）</td><td><b id="cyOn"></b></td></tr>
+      <tr><td>Hole diameter 曲轴孔径（= 曲轴轴承外圈）</td><td><b id="cyHd"></b></td></tr>
+      <tr><td>Position diameter 曲轴孔分布圆（= 2a）</td><td><b id="cyOp"></b></td></tr>
+      <tr><td>Crank journal 曲轴轴颈（轴承内径）</td><td><b id="cyPin"></b></td></tr>
       <tr><td>Ring pin 针齿（销+套）</td><td><b id="cyPinC"></b></td></tr>
-      <tr><td>Output pin 柱销（销+套）</td><td><b id="cyOutC"></b></td></tr>
+      <tr><td>Crank bearing 曲轴轴承（标准件）</td><td><b id="cyOutC"></b></td></tr>
       <tr><td>摆线轮最大外缘（≤ 壳体 Ø）</td><td><b id="cyRim"></b></td></tr>
       <tr><td>Shaft bearing 输入轴轴承（标准件）</td><td><b id="cyBrg"></b></td></tr>
     </table>
     </div>
     </div>
-    <div class="note">背隙、齿根圆角与绘图一致（0.04mm、0.3·m）。行星轮孔 = 标准深沟球轴承外圈（623~6204 系列自动选型，孔壁 ≥ 2.5m）。摆线轮表在 RV 模式下显示，按 CycloidalDrive 插件配置项列出。</div>
+    <div class="note">背隙、齿根圆角与绘图一致（0.04mm、0.3·m）。行星轮孔 = 标准深沟球轴承（623~6204 自动选型）：单级模式孔=轴承外圈；RV 模式孔=曲轴轴颈=轴承内径，轴承外圈即摆线轮曲轴孔，曲轴孔分布圆=2a（与行星轮分布圆相同）。摆线轮表在 RV 模式下显示，按 CycloidalDrive 插件配置项列出。</div>
   </div>
 </div>
 
@@ -291,6 +281,7 @@ const MSTD = [0.3,0.4,0.5,0.6,0.8,1,1.25,1.5,2,2.5,3,4];   // 标准模数系列
 let paused = false, tAnim = 0, last = performance.now();
 let showAdj = true, showPitch = true, autoZs = true;
 let autoZoom = true, showAnnot = true;
+const cycCache = new Map();   // 摆线级参数跨帧缓存（design() 每帧重算，cycMath 开销大）
 
 // ---------- 渐开线轮廓 ----------
 function gearOutline(m, z, bl, fl) {
@@ -420,12 +411,12 @@ function drawAnnot(d, gs, cx, cy, zoom) {
     ctx.fillStyle = Y;
   };
 
-  // 内齿圈外径：给定硬尺寸（虚线圈即设计外径）
+  // 给定外径：硬尺寸（虚线圈即设计外径）
   ctx.setLineDash([6, 5]);
   ctx.beginPath(); ctx.arc(cx, cy, d.Dmax/2*zoom, 0, 2*Math.PI); ctx.stroke();
   ctx.setLineDash([]);
   tag(cx + d.Dmax/2*zoom*0.70 - 10, cy - d.Dmax/2*zoom*0.70 - 6,
-      `内齿圈外径=Ø${d.Dmax}mm（给定）`, 'right');
+      d.rv ? `针齿壳外径=Ø${d.Dmax}mm（给定）` : `内齿圈外径=Ø${d.Dmax}mm（给定）`, 'right');
 
   // 太阳轮：输入 T₁、n₁ 弧形箭头（转向与动画一致），标签放在弧顶上方
   const r1 = gs.ra*zoom + 16, a0 = -2.55, a1 = -0.6;
@@ -438,7 +429,7 @@ function drawAnnot(d, gs, cx, cy, zoom) {
   ctx.beginPath(); ctx.arc(cx, cy, r2, b0, b1); ctx.stroke();
   arrowHead(cx + r2*Math.cos(b1), cy + r2*Math.sin(b1), b1 + Math.PI/2, 8);
   tag(cx + (r2+40)*Math.cos(2.65), cy + (r2+40)*Math.sin(2.65),
-      d.rv ? `行星级输出 ${d.rv.Tin2.toFixed(2)}N·m → 摆线级`
+      d.rv ? `输出 T₂=${d.T2.toFixed(2)}N·m（行星架=输出端）`
            : `输出 T₂=${d.T2.toFixed(2)}N·m（要求≥${(d.T2req/1000).toFixed(2)}）`, 'right');
 
   // 太阳轮孔径（输入轴直径）引线，向右下引出
@@ -453,7 +444,8 @@ function drawAnnot(d, gs, cx, cy, zoom) {
     '图中标注的输入参数：',
     'T₁ — 输入扭矩（太阳轮）',
     'T₂ — 要求输出扭矩（行星架）',
-    '内齿圈外径 — 给定尺寸（黄虚线圈）',
+    d.rv ? '针齿壳外径 — 给定尺寸（黄虚线圈）'
+         : '内齿圈外径 — 给定尺寸（黄虚线圈）',
     '输入轴直径 — 太阳轮中心孔',
     'n₁ — 输入转速（太阳轮转向）',
     'z_s、n — 齿数 / 行星轮个数（经验选择）',
@@ -657,7 +649,7 @@ function design() {
   const phi = num('phi', 0.5, 0.1, 2), YF = num('YF', 2.8, 1, 5), Kp = +$('kp').value;
   const KA = +$('ka').value;
   const cDp = num('cDp', 0.8, 0.5, 0.95), cK1 = num('cK1', 0.6, 0.25, 0.75);
-  const cOut = num('cOut', 0.12, 0.05, 0.2), cT = num('cT', 0.15, 0.05, 0.3);
+  const cT = num('cT', 0.15, 0.05, 0.3);
   // 由扭矩需求反推传动比：i* = T₂/(T₁·η)，单级可用范围 3~9（超出则按边界配齿并告警）
   const ETA = 0.97;
   const iStar = T2req/(T1*ETA);
@@ -669,74 +661,140 @@ function design() {
   let wallS = st1.ds/2 - 1.25*st1.m - shaft/2;
   const okAll = iRange && st1.ok && st1.m >= st1.mE && wallS >= st1.sReqS;
 
-  // 单级不满足 → RV 减速器：第一级行星取小减速比（真实 RV 取 3~5，默认 4），
-  // 第二级摆线针轮承担大减速比，行星架与偏心轴（曲柄轴）一体，两级共用同一给定外径。
+  // 单级不满足 → 真实 RV（2K-V）一体化方案：渐开线行星（太阳轮输入，行星轮轴=曲轴，无内齿圈）
+  // + 摆线针轮（针齿壳固定，双摆线轮 180° 错相，行星架输出）。速比 i = 1+(z_p/z_s)·(z_c+1)。
   const ETA2 = 0.9;
   let st = st1, rv = null, rvMsg = null;
   const iStar2 = T2req/(T1*ETA*ETA2);            // 两级效率 η₁η₂ 下的需求传动比
   if (!okAll) {
-    if (iStar2 < 27) {
-      // RV 最小合理传动比 = i₁(3) × z_c(9) = 27：需求比低于此值给 RV 必然严重超调
-      rvMsg = `需求传动比 ${iStar2.toFixed(1)} < RV 最小合理值 27（i₁=3 × z_c=9）。`
-            + `单级行星强度/尺寸不足时建议：加大内齿圈外径、增大齿宽系数 φ_d（程序已自动尝试至 1.0）、`
+    if (iStar2 < 16) {
+      // RV 最小合理传动比 = 1 + u(1.5) × 针齿(10) = 16：需求比低于此值给 RV 必然严重超调
+      rvMsg = `需求传动比 ${iStar2.toFixed(1)} < RV 最小合理值 16（u=1.5 × 针齿10）。`
+            + `单级行星强度/尺寸不足时建议：加大外径、增大齿宽系数 φ_d（程序已自动尝试至 1.0）、`
             + `换更高强度材料（40Cr → 20CrMnTi 渗碳）、减小输入轴直径（太阳轮孔壁厚不足时）、`
             + `或降低扭矩/转速需求。`;
     } else {
-      // i₁ 分配：遍历 3~9，取 |i₁实际×z_c − i**| 最小（z_c 限 9~87，真实摆线范围）
-      let best = null;
-      for (let i1 = 3; i1 <= 9; i1++) {
-        const s1 = oneStage(i1, T1, P);              // 手动 z_s 时尊重用户配置
-        const zcNeed = T2req/(T1*s1.iAct*ETA*ETA2);
-        if (zcNeed > 87) continue;                    // 该 i₁ 下摆线级吃不下
-        // 双摆线盘 180° 错相安装要求 z_c 为奇数（z_针=z_c+1 为偶数），否则第二片轮与针齿干涉
-        let zc = Math.min(Math.max(9, Math.ceil(zcNeed)), 87);
-        if (zc % 2 === 0) zc = Math.min(zc + 1, 87);
-        const iTot = s1.iAct*zc;
-        const score = Math.abs(iTot - iStar2)/iStar2;
-        if (!best || score < best.score) best = { s1, zcNeed, zc, iTot, score };
+      const Rh = Dmax/2 - Math.max(3, 0.06*Dmax);      // 壳体孔半径（壳壁 max(3mm, 6%D)）
+      const phis = [...new Set([phi, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= phi - 1e-9))];
+      // 摆线级参数只随 z_c 变化：按 z_c 预计算并跨帧缓存（针径、偏心距、压力角、轮廓）
+      const cycOf = zc => {
+        const key = `${zc}|${cDp}|${cK1}|${Dmax}`;
+        if (cycCache.has(key)) return cycCache.get(key);
+        const Dp = cDp*Dmax;
+        const dPin = pickRoller(Math.PI*Dp/(zc + 1)*0.5);   // 针齿套外径：标准滚子（≈半节距）
+        let pk = null;
+        for (let k1 = cK1; k1 >= 0.25 - 1e-9; k1 -= 0.05) {  // K₁ 自动下调至压力角≥30°且无奇异点
+          const eTry = Math.max(0.1, Math.round(k1*(Dp/2)/zc*20)/20);
+          const c = cycMath(zc, Dp, dPin, eTry);
+          pk = { e: eTry, cyc: c, k1 };
+          if (c.valid && c.paDeg >= 30) break;
+        }
+        const rr = pk.cyc.pts.map(([x, y]) => Math.hypot(x, y));
+        const out = { Dp, dPin, ...pk, maxR: Math.max(...rr), minR: Math.min(...rr) };
+        if (cycCache.size > 300) cycCache.clear();
+        cycCache.set(key, out);
+        return out;
+      };
+      // 联合配齿：(z_s, z_p, z_c) → i = 1+(z_p/z_s)(z_c+1)；全部校核为约束，速比偏差最小为目标
+      const zsFixed = autoZs ? 0 : +$('zs').value;
+      const cand = [];
+      for (let zc = 9; zc <= 59; zc += 2) {          // z_c 奇数：双盘 180° 错相的几何必然
+        const zpin = zc + 1, cy = cycOf(zc);
+        const uNeed = (iStar2 - 1)/zpin;
+        for (let zs = 12; zs <= 60; zs++) {
+          if (zsFixed && zs !== zsFixed) continue;   // 手动 z_s 时尊重用户配置
+          const zp = Math.round(uNeed*zs);
+          if (zp < 14 || zp > 130) continue;
+          const u = zp/zs;
+          if (u < 1.0 || u > 5.0) continue;
+          const iTot = 1 + u*zpin;
+          // 模数：行星齿顶不碰壳体孔，标准系列取最大
+          const mMax = (Rh - 1)/(zs/2 + zp + 1);
+          let m = 0;
+          for (let mi = MSTD.length - 1; mi >= 0; mi--) if (MSTD[mi] <= mMax + 1e-9) { m = MSTD[mi]; break; }
+          if (m <= 0) continue;
+          const a = m*(zs + zp)/2, ds = m*zs, dp = m*zp;
+          const clearAdj = 2*a*Math.sin(Math.PI/n) - m*(zp + 2);
+          if (clearAdj < 0.5) continue;
+          const T2mm = T1*iTot*ETA*ETA2;
+          const Fmax = 4*T2mm/(cy.k1*zpin*(cy.Dp/2));      // 摆线轮最大接触力（承输出扭矩）
+          // 齿宽阶梯：强度不够先加宽 φ_d
+          let bs = null;
+          for (const ph of phis) {
+            const b = ph*m*zs;
+            const mE = mEst(T1*KA, Kp, YF, ph, n, zs, sFP);
+            const v = Math.PI*ds*n1/60000, KV = 1 + v/25;
+            const Ft = 2*T1*KA*KV/(n*ds);
+            const sigF = Ft*Kp*YF/(b*m);
+            const sigH = 189.8*Math.sqrt(Ft*Kp*(u+1)/(b*ds*u));
+            bs = { b, ph, mE, v, KV, Ft, sigF, sigH, SF: sFP/sigF, SH: sHP/sigH };
+            if (bs.SF >= 1.4 && bs.SH >= 1.1 && m >= mE) { bs.strong = true; break; }
+          }
+          // 曲轴（行星轮轴）：轴颈 = 行星轮孔 = 标准轴承内径，从大到小试
+          let crank = null;
+          if (bs.strong) {
+            const Fp = bs.Ft*Kp;
+            const sReq = Math.max(1.0, 2*Fp/(bs.b*sFP));
+            const rootP = dp/2 - 1.25*m;
+            for (let bi = BRG.length - 1; bi >= 0; bi--) {
+              const [bd, BD, BB, bname, bC] = BRG[bi];
+              if (rootP - bd/2 < sReq) continue;                    // 行星轮孔壁（强度）
+              if (2*a*Math.sin(Math.PI/n) < BD + 1) continue;       // 相邻曲轴轴承相碰
+              if (a + BD/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
+              const nRelC = zpin*n1/iTot;                            // 曲轴相对行星架转速
+              const L10h = Math.pow(bC*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
+              const bCyc = Math.ceil(Math.max(Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
+              const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 曲轴弯曲（简化）
+              crank = { d: bd, D: BD, B: BB, name: bname, C: bC, L10h,
+                        wall: rootP - bd/2, sReq, sigB, bCyc,
+                        lifeFail: L10h < 5000, bendFail: sigB > sFP };
+              break;
+            }
+          }
+          cand.push({ zs, zp, zc, zpin, u, iTot, m, a, ds, dp, clearAdj, cy, T2mm, Fmax, crank,
+                      score: Math.abs(iTot - iStar2)/iStar2, ...bs });
+        }
       }
-      if (!best) {  // 全 i₁ 都 zcNeed>87：按 i₁=9、z_c=87 保底并报超限
-        const s1 = oneStage(9, T1, P);
-        best = { s1, zcNeed: T2req/(T1*s1.iAct*ETA*ETA2), zc: 87, iTot: s1.iAct*87, score: 1 };
+      if (!cand.length) {
+        rvMsg = `需求传动比 ${iStar2.toFixed(1)} 在给定外径 Ø${Dmax} 内无可行 RV 组合：`
+              + `壳体孔装不下渐开线级，或超出单台 RV 速比范围（≈16~300）。`
+              + `⇒ 加大外径、减少行星轮数 n、或调整扭矩需求。`;
+      } else {
+        // 分层选优：①强度+模数 ②曲轴放得下 ③轴承寿命+弯曲 ④宁大勿小（i 偏小则 T₂ 不达标）⑤速比偏差最小
+        const tier = c => !c.strong ? 3 : !c.crank ? 2
+                        : (c.crank.lifeFail || c.crank.bendFail) ? 1 : 0;
+        const under = c => c.iTot < iStar2 ? 1 : 0;
+        cand.sort((x, y) => (tier(x) - tier(y)) || (under(x) - under(y)) || (x.score - y.score));
+        const c0 = cand[0], cy = c0.cy;
+        const tP = Math.max(0.5, Math.round(cT*cy.dPin*10)/10);
+        const outerDisc = cy.e + cy.maxR, outerPins = cy.Dp/2 + cy.dPin/2, shellR = Dmax/2;
+        const rimOK = outerDisc <= shellR && outerPins <= shellR;
+        const bCyc = c0.crank ? c0.crank.bCyc
+                     : Math.ceil(Math.max(c0.Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
+        rv = { zs: c0.zs, zp: c0.zp, zc: c0.zc, zpin: c0.zpin, u: c0.u, iTot: c0.iTot, iStar2,
+               m: c0.m, a: c0.a, ds: c0.ds, dp: c0.dp, b: c0.b, clearAdj: c0.clearAdj,
+               sigF: c0.sigF, sigH: c0.sigH, SF: c0.SF, SH: c0.SH, KV: c0.KV, v: c0.v,
+               mE: c0.mE, phiU: c0.ph, sFok: c0.SF >= 1.4, sHok: c0.SH >= 1.1, strong: !!c0.strong,
+               Dp: cy.Dp, dPin: cy.dPin, e: cy.e, k1Used: cy.k1, paDeg: cy.cyc.paDeg,
+               valid: cy.cyc.valid, pts: cy.cyc.pts, Rp: cy.cyc.Rp, rp: cy.cyc.rp,
+               maxR: cy.maxR, minR: cy.minR, outerDisc, outerPins, shellR, rimOK, Rh,
+               Fmax: c0.Fmax, bStr: c0.Fmax*189.8*189.8/(sHP*sHP*cy.dPin), bCyc,
+               pinCore: cy.dPin - 2*tP, tP, crank: c0.crank,
+               n2: n1/c0.iTot, T2: c0.T2mm/1000,
+               crankT: T1/1000*KA*c0.zp/(n*c0.zs) };
+        // 画布 / CAD 表 / 几何尺寸复用 st：渐开线级数据（无内齿圈）
+        st = { zs: c0.zs, zp: c0.zp, zr: 0, asm: true, m0: c0.m, m: c0.m, a: c0.a,
+               clearAdj: c0.clearAdj, iAct: c0.iTot, b: c0.b, ds: c0.ds, dp: c0.dp, dr: 0,
+               rim: Math.max(3, 0.06*Dmax), mE: c0.mE, v: c0.v, KV: c0.KV,
+               sigF: c0.sigF, sigH: c0.sigH, SF: c0.SF, SH: c0.SH,
+               sFok: rv.sFok, sHok: rv.sHok,
+               holeR: c0.crank ? c0.crank.d/2 : Math.max(0.4*(c0.dp/2 - 1.25*c0.m), 1.5*c0.m),
+               wall: c0.crank ? c0.crank.wall : 0, brg: c0.crank,
+               brgOK: !!c0.crank && !c0.crank.lifeFail,
+               sReq: c0.crank ? c0.crank.sReq : 1,
+               sReqS: Math.max(1.0, (2*T1*KA/c0.ds)/(c0.b*sFP)),
+               rootP: c0.dp/2 - 1.25*c0.m, nRel: c0.zpin*n1/c0.iTot, ok: true, phiU: c0.ph };
       }
-      const { s1, zcNeed, zc, iTot } = best;
-      const Dp = cDp*Dmax;                           // 针齿节圆直径（节圆比可调）
-      const dPin = pickRoller(Math.PI*Dp/(zc + 1)*0.5);   // 针齿套外径：标准滚子（≈半节距取档）
-      const dOut0 = pickRoller(cOut*Dp);             // 输出柱销套外径：标准滚子（比例可调）
-      // 迭代调整③：短幅系数 K₁ 从输入值起自动下调，直到压力角 ≥30° 且无奇异点
-      let pick = null;
-      for (let k1 = cK1; k1 >= 0.25 - 1e-9; k1 -= 0.05) {
-        const eTry = Math.max(0.1, Math.round(k1*(Dp/2)/zc*20)/20);
-        const c = cycMath(zc, Dp, dPin, eTry);
-        if (!pick) pick = { e: eTry, cyc: c, k1 };
-        if (c.valid && c.paDeg >= 30) { pick = { e: eTry, cyc: c, k1 }; break; }
-      }
-      const { e, cyc, k1: k1Used } = pick;
-      // 销+套结构：套厚 = max(0.5mm, t/d × 套径)，销芯 = 套外径 − 2·套厚
-      const tP = Math.max(0.5, Math.round(cT*dPin*10)/10);
-      const tO = Math.max(0.5, Math.round(cT*dOut0*10)/10);
-      // 摆线轮最大外缘（用采样轮廓实算）与壳体校核：轮外缘、针齿外缘都须 ≤ 壳体半径
-      const maxR = Math.max(...cyc.pts.map(([x, y]) => Math.hypot(x, y)));
-      const outerDisc = e + maxR, outerPins = Dp/2 + dPin/2, shellR = Dmax/2;
-      const rimOK = outerDisc <= shellR && outerPins <= shellR;
-      // 摆线轮厚度：针齿最大接触力 F_max ≈ 4T₂/(K₁·z_c·R_p)，线接触简化
-      // σ_H = Z_E·√(F/(b·d_套)) ≤ σ_HP ⇒ b ≥ F·Z_E²/(σ_HP²·d_套)；结构下限 0.1·D_p
-      const T2mm = T1*s1.iAct*zc*ETA*ETA2;
-      const Fmax = 4*T2mm/(k1Used*zc*(Dp/2));
-      const bStr = Fmax*189.8*189.8/(sHP*sHP*dPin);
-      const bCyc = Math.ceil(Math.max(bStr, 0.1*Dp)*2)/2;   // 向上取整到 0.5mm
-      rv = { s1, zc, zpin: zc + 1, Dp, dPin, e, k1Used, iStar2,
-             nOut: 6, Dop: 0.5*Dp, dOut: dOut0, tP, tO,
-             pinCore: dPin - 2*tP, outCore: dOut0 - 2*tO,
-             maxR, outerDisc, outerPins, shellR, rimOK,
-             Fmax, bStr, bCyc,
-             zcNeed, overflow: zcNeed > 87,
-             iTot,
-             T2: T1/1000*s1.iAct*zc*ETA*ETA2,
-             n2: n1/iTot,
-             Tin2: T1/1000*s1.iAct*ETA, nin2: n1/s1.iAct,
-             ...cyc };
-      st = s1;   // 画布 / CAD 表 / 几何尺寸显示 RV 第一级（行星级）
     }
   }
   if (autoZs) $('zs').value = st.zs;
@@ -768,23 +826,29 @@ function setRO(id, text, cls) {
 
 // 校核/结论项悬停解释（红绿都生效）：含义 + 不满足时的对策
 const TIPS = {
-  cAsm: '装配条件：n 个行星轮要均布装入，要求 (z_s+z_r)/n 为整数。不满足时实物装不进去 ⇒ 微调太阳轮齿数 z_s（±1~2），程序会自动重配。',
+  cAsm: '装配条件：n 个行星轮要均布装入，要求 (z_s+z_r)/n 为整数。不满足时实物装不进去 ⇒ 微调太阳轮齿数 z_s（±1~2），程序会自动重配。RV 模式无内齿圈，无此条件（曲轴孔均布自动满足）。',
   cAdj: '邻接条件：相邻行星轮齿顶圆不能相碰，间隙 = 2a·sin(π/n) − d_a,p ≥ 0.5mm。不满足 ⇒ 减少行星轮个数 n、增大传动比（行星轮变小）或减小模数。',
   cUc: '根切检查：标准 20° 齿轮 z_s ≥ 17 不根切。z_s < 17 必须正变位（本工具齿形按未变位绘制，仅提示）。',
   cF: '弯曲安全系数 S_F = σ_FP/σ_F ≥ 1.4（含工况系数 K_A、动载系数 K_V、载荷分配不均 K_p）。不足 ⇒ 程序已尝试自动加宽齿宽至 φ_d=1.0；仍不足则降扭矩、加大外径（更大模数）或换高强度材料。',
   cH: '接触安全系数 S_H = σ_HP/σ_H ≥ 1.1（简化赫兹接触估算）。不足 ⇒ 加宽齿宽、加大外径、或改善材料热处理提高 σ_HP。',
-  cD: '模数取标准系列后必须能装进给定内齿圈外径（齿根圆 + 最小轮缘 max(3m,2)）。装不下 ⇒ 加大外径或减少齿数。',
+  cD: '模数取标准系列后必须能装进给定外径（单级：齿根圆+最小轮缘；RV：行星齿顶 ≤ 壳体孔）。装不下 ⇒ 加大外径或减少齿数。',
   cMest: '弯曲强度需求的最小模数 m_est ≤ 实际模数 m。不满足 ⇒ 外径偏小或扭矩偏大（模数由外径反解，无法再调大）。',
-  cWall: '行星轮孔 = 标准轴承外圈（623~6204 自动选型）：壁厚须满足强度 s ≥ 2F/(b·σ_FP)，且 L₁₀ 额定寿命 ≥ 5000h。装不下 ⇒ 加大外径、降扭矩，或改用滚针直配 / 轴套。',
+  cWall: '单级：行星轮孔 = 标准轴承外圈（623~6204），壁厚 s ≥ 2F/(b·σ_FP) 且 L₁₀ ≥ 5000h。RV：行星轮孔 = 曲轴轴颈 = 标准轴承内径，轴承外圈即摆线轮曲轴孔。',
   cWallS: '太阳轮孔壁厚须满足强度 s ≥ F/(b·σ_FP)（太阳轮传递全部输入扭矩）。不足 ⇒ 减小输入轴直径，或加大外径/模数。',
   cBrg: '输入轴直径应等于标准轴承内径（3、4、5、6、7、8、9、10、12、15、17、20）。不匹配 ⇒ 按建议值修改轴径。',
-  rStar: '需求传动比 i* = T₂/(T₁·η)，η=0.97。单级行星可用范围 3~9；超出自动转 RV 串联方案（需求比 ≥27 时），<27 则提示 RV 不适用。',
-  rI: '齿数必须为整数，实际传动比与 i* 会有偏差。偏差 >5% 时输出转速误差需关注 ⇒ 微调 z_s 或接受。',
-  rT2: '实际输出扭矩 = T₁·i·η（RV 为 T₁·i₁·z_c·η₁η₂），须 ≥ 要求输出扭矩。',
+  rStar: '需求传动比 i* = T₂/(T₁·η)，η=0.97。单级行星可用范围 3~9；超出自动转真实 RV 一体化方案（需求比 ≥16 时），<16 则提示 RV 不适用。',
+  rI: '齿数必须为整数，实际传动比与 i* 会有偏差。偏差 >5% 时输出转速误差需关注 ⇒ 微调 z_s 或接受。RV 模式程序在全部校核达标的组合中自动选偏差最小者。',
+  rT2: '实际输出扭矩 = T₁·i·η（RV 为 T₁·(1+(z_p/z_s)(z_c+1))·η₁η₂），须 ≥ 要求输出扭矩。',
+  rvS1: '真实 RV 的渐开线级：无内齿圈，太阳轮直接驱动行星轮，行星轮轴即摆线轮曲轴。只承受输入级小扭矩，故模数可以很小；它的作用是把运动分配给 2~3 根曲轴。',
+  rvZ: '摆线轮齿数 z_c 取奇数：双摆线盘 180° 错相安装的几何必然（针齿数 z_c+1 必须为偶数，针齿环才有 180° 对称性），否则第二片轮与针齿干涉。',
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
-  rvTot: 'RV 总传动比 = i₁ × z_c，与需求偏差应 ≤5%（z_c 只能取整数，偏差不可避免）。偏差大 ⇒ 调整 T₁/T₂ 需求或接受转速误差。',
+  rvCrank: '曲轴轴颈 = 行星轮孔 = 标准轴承内径（623~6204 从大到小试）。需同时满足：行星轮孔壁强度、相邻曲轴轴承不相碰、摆线轮曲轴孔不穿出轮缘。',
+  rvCrankB: '曲轴轴承：行星架支承轴承与摆线轮孔轴承取同型号标准件。寿命 L₁₀ ≥ 5000h，载荷 ≈ 摆线轮最大接触力的 1/n（简化均载），工作转速 = (z_c+1)·n₂。',
+  rvCrankS: '曲轴弯曲简化校核：M = (F_max/n)·(b_c+b)/2，σ = 32M/(πd³) ≤ σ_FP。曲轴变形是 RV 回差（lost motion）的主要来源，此处仅为量级估算。',
+  rvDiscH: '摆线轮上的曲轴孔：孔数 = 行星轮数 n，分布圆 = 2a（与行星轮分布圆相同——一体化结构的必然结果），孔径 = 曲轴轴承外圈。',
+  rvTot: 'RV 总传动比 = 1+(z_p/z_s)·(z_c+1)：差动关系，不是两级相乘（例：纳博 RV-40E-121 = 1+3×40）。与需求偏差应 ≤5%，程序在全部校核达标的 (z_s,z_p,z_c) 组合中选偏差最小者。',
 };
 // 自绘悬停提示：悬停立即显示（原生 title 有系统延迟，弃用）
 const tipEl = document.createElement('div');
@@ -806,22 +870,24 @@ for (const [id, tip] of Object.entries(TIPS)) {
   row.addEventListener('mouseleave', () => { tipEl.style.display = 'none'; });
 }
 
-// ---------- 方案 B：摆线减速器示意图（针齿固定黄 / 摆线轮灰 / 输出柱销绿） ----------
+// ---------- RV 摆线级示意图（针齿壳固定黄 / 摆线轮灰随行星架 / 曲轴绿） ----------
 function drawCyclo(d) {
   const r = d.rv;
   cv2.style.display = r ? '' : 'none';
   if (!r) return;
   const zoom = 430/d.Dmax;
   const cx = W2/2, cy = H2/2 + 10;
-  const thIn = 1.5*tAnim;              // 输入偏心轴转角
-  const thD = -thIn/r.zc;              // 摆线轮自转（反向 1/i）
-  const ex = r.e*Math.cos(thIn), ey = r.e*Math.sin(thIn);   // 轮盘中心偏心位置
+  const thE = 1.5*tAnim;              // 曲轴（偏心段）绝对转角
+  const thD = -thE/r.zc;              // 摆线轮 = 行星架转角（ω_H = −ω_曲轴/z_c）
+  const ex = r.e*Math.cos(thE), ey = r.e*Math.sin(thE);   // 摆线轮中心偏心位置
 
   ctx2.clearRect(0, 0, W2, H2);
-  // 壳体（= 给定内齿圈外径）
+  // 壳体（= 给定外径）与壳体孔
   ctx2.strokeStyle = '#9fb0c0'; ctx2.lineWidth = 2;
   ctx2.beginPath(); ctx2.arc(cx, cy, d.Dmax/2*zoom, 0, 2*Math.PI); ctx2.stroke();
-  // 针齿（固定）
+  ctx2.strokeStyle = '#5d6d7e'; ctx2.lineWidth = 1.2;
+  ctx2.beginPath(); ctx2.arc(cx, cy, r.Rh*zoom, 0, 2*Math.PI); ctx2.stroke();
+  // 针齿（固定在针齿壳上）
   ctx2.fillStyle = '#c9a227'; ctx2.strokeStyle = '#e8d06a'; ctx2.lineWidth = 1;
   for (let k = 0; k < r.zpin; k++) {
     const a = k*2*Math.PI/r.zpin;
@@ -829,7 +895,7 @@ function drawCyclo(d) {
     ctx2.arc(cx + r.Rp*Math.cos(a)*zoom, cy + r.Rp*Math.sin(a)*zoom, r.rp*zoom, 0, 2*Math.PI);
     ctx2.fill(); ctx2.stroke();
   }
-  // 摆线轮（轮廓 = 插件同款曲线方程；中心随偏心轴公转、自转 -1/i）
+  // 摆线轮（轮廓 = 插件同款曲线方程；中心随曲轴偏心公转，自身随行星架转）
   ctx2.save();
   ctx2.translate(cx + ex*zoom, cy + ey*zoom);
   ctx2.rotate(thD);
@@ -839,26 +905,27 @@ function drawCyclo(d) {
   ctx2.closePath();
   ctx2.fillStyle = '#8a94a0'; ctx2.fill();
   ctx2.strokeStyle = '#dfe7ee'; ctx2.lineWidth = 1.4/zoom; ctx2.stroke();
-  // 轮盘上输出孔（孔径 = 柱销 + 2e）与中心孔
+  // 摆线轮上的曲轴孔（孔径 = 曲轴轴承外圈，分布圆 = 2a，随摆线轮转）
   ctx2.fillStyle = '#141a23';
-  for (let j = 0; j < r.nOut; j++) {
-    const a = j*2*Math.PI/r.nOut;
+  for (let j = 0; j < d.n; j++) {
+    const a = j*2*Math.PI/d.n;
     ctx2.beginPath();
-    ctx2.arc(r.Dop/2*Math.cos(a), r.Dop/2*Math.sin(a), (r.dOut/2 + r.e), 0, 2*Math.PI);
+    ctx2.arc(r.a*Math.cos(a), r.a*Math.sin(a), (r.crank ? r.crank.D/2 : 2), 0, 2*Math.PI);
     ctx2.fill();
   }
-  ctx2.beginPath(); ctx2.arc(0, 0, d.shaft/2, 0, 2*Math.PI); ctx2.fill();
-  ctx2.strokeStyle = '#9fb0c0'; ctx2.lineWidth = 1/zoom; ctx2.stroke();
   ctx2.restore();
-  // 输出柱销（随输出轴转，转速 = 输入/i）
-  ctx2.fillStyle = '#2e8b57'; ctx2.strokeStyle = '#5fd08f'; ctx2.lineWidth = 1;
-  for (let j = 0; j < r.nOut; j++) {
-    const a = j*2*Math.PI/r.nOut + thD;
-    ctx2.beginPath();
-    ctx2.arc(cx + r.Dop/2*Math.cos(a)*zoom, cy + r.Dop/2*Math.sin(a)*zoom, r.dOut/2*zoom, 0, 2*Math.PI);
-    ctx2.fill(); ctx2.stroke();
+  // 曲轴（绿）：主轴颈随行星架转（与摆线轮同角速度），偏心段 → 摆线轮中心
+  for (let j = 0; j < d.n; j++) {
+    const a = j*2*Math.PI/d.n + thD;
+    const jx = cx + r.a*Math.cos(a)*zoom, jy = cy + r.a*Math.sin(a)*zoom;
+    ctx2.strokeStyle = '#5fd08f'; ctx2.lineWidth = 1.2;
+    ctx2.beginPath(); ctx2.moveTo(jx, jy); ctx2.lineTo(cx + ex*zoom, cy + ey*zoom); ctx2.stroke();
+    ctx2.fillStyle = '#2e8b57';
+    ctx2.beginPath(); ctx2.arc(jx, jy, (r.crank ? r.crank.d/2 : 1.5)*zoom, 0, 2*Math.PI); ctx2.fill();
+    ctx2.strokeStyle = '#5fd08f'; ctx2.lineWidth = 1;
+    ctx2.stroke();
   }
-  // 偏心输入轴标记
+  // 主中心 → 摆线轮中心（偏心 e）标记
   ctx2.strokeStyle = '#ffd166'; ctx2.lineWidth = 1.4;
   ctx2.beginPath(); ctx2.moveTo(cx, cy); ctx2.lineTo(cx + ex*zoom, cy + ey*zoom); ctx2.stroke();
   ctx2.fillStyle = '#ffd166';
@@ -866,10 +933,10 @@ function drawCyclo(d) {
 
   // 标注
   ctx2.fillStyle = '#9fb0c0'; ctx2.font = '12px sans-serif'; ctx2.textAlign = 'center';
-  ctx2.fillText(`RV 第二级 · 摆线针轮：输入=行星架输出 ${r.Tin2.toFixed(2)}N·m · ${r.nin2.toFixed(0)}rpm  z_c=${r.zc}  针齿×${r.zpin}（黄）  摆线轮（灰）  输出柱销×${r.nOut}（绿）`, W2/2, 22);
+  ctx2.fillText(`RV 摆线级（俯视）：针齿×${r.zpin}（黄，固定）  摆线轮（灰，随行星架 ${r.n2.toFixed(1)}rpm）  曲轴×${d.n}（绿，轴心→盘心 = 偏心 e=${r.e.toFixed(2)}mm）`, W2/2, 22);
   ctx2.fillStyle = (r.T2 >= d.T2req/1000 && r.valid) ? '#8ef0c1' : '#ff8a8a';
   ctx2.font = 'bold 13px sans-serif';
-  ctx2.fillText(`整机输出 T₂=${r.T2.toFixed(2)} N·m（i=${r.iTot.toFixed(1)}） ／ 压力角 ${r.paDeg.toFixed(1)}° ／ ${r.valid ? '曲线有效' : '⚠ 曲线有奇异点'}`, W2/2, H2-14);
+  ctx2.fillText(`整机输出 T₂=${r.T2.toFixed(2)} N·m（i=1+(${r.zp}/${r.zs})×${r.zpin}=${r.iTot.toFixed(1)}） ／ 压力角 ${r.paDeg.toFixed(1)}° ／ ${r.valid ? '曲线有效' : '⚠ 曲线有奇异点'}`, W2/2, H2-14);
   ctx2.textAlign = 'left';
 }
 
@@ -882,11 +949,13 @@ function frame(now) {
 
   // ---- 输出面板 ----
   $('vZs').textContent = zs;
-  setRO('rStar', `${d.iStar.toFixed(2)} ${d.iRange ? '（单级可行）' : '✗ 超出单级 3~9 → RV 串联方案'}`, d.iRange ? '' : 'warn');
-  setRO('rZ', `zp=${zp} ／ zr=${zr}${d.rv ? '（RV 第一级）' : ''}`);
-  setRO('rI', d.rv ? `${d.dispI.toFixed(2)} = ${iAct.toFixed(2)} × ${d.rv.zc}（RV 整机）`
+  setRO('rStar', `${d.iStar.toFixed(2)} ${d.iRange ? '（单级可行）' : '✗ 超出单级 3~9 → RV 一体化方案'}`, d.iRange ? '' : 'warn');
+  setRO('rZ', d.rv ? `zs=${zs} ／ zp=${zp}（u=${d.rv.u.toFixed(2)}，无内齿圈）`
+                   : `zp=${zp} ／ zr=${zr}`);
+  setRO('rI', d.rv ? `${d.dispI.toFixed(2)} = 1 + (${zp}/${zs})×${d.rv.zpin}（RV 整机，偏差 ${(100*(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2).toFixed(1)}%）`
                    : `${iAct.toFixed(2)}（${(100*(iAct-d.iStar)/d.iStar).toFixed(1)}%）`,
-        d.rv ? '' : (Math.abs(iAct-d.iStar)/d.iStar > 0.05 ? 'warn' : ''));
+        d.rv ? (Math.abs(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2 > 0.05 ? 'warn' : '')
+             : (Math.abs(iAct-d.iStar)/d.iStar > 0.05 ? 'warn' : ''));
   setRO('rMest', d.mE.toFixed(2) + ' mm');
   setRO('rM', d.m + ' mm');
   setRO('rB', d.b.toFixed(1) + ' mm' + (d.phiUsed > d.phi + 1e-9 ? `（φ_d 已自动 ${d.phi}→${d.phiUsed.toFixed(1)}）` : ''));
@@ -897,19 +966,32 @@ function frame(now) {
   const f1 = v => 'Ø' + v.toFixed(1);
   setRO('dS', `${f1(d.ds)} / ${f1(d.ds+2*m)} / ${f1(d.ds-2.5*m)} mm`);
   setRO('dP', `${f1(d.dp)} / ${f1(d.dp+2*m)} / ${f1(d.dp-2.5*m)} mm`);
-  setRO('dR', `${f1(d.dr)} / ${f1(d.dr-2*m)} / ${f1(d.dr+2.5*m)} mm`);
+  $('hdR').textContent = d.rv ? '针齿壳（RV 无内齿圈）' : '内齿圈';
+  setRO('dR', d.rv ? `壳体孔 ${f1(2*d.rv.Rh)} / 针齿节圆 ${f1(d.rv.Dp)} / 壳体外径 ${f1(d.Dmax)}`
+                   : `${f1(d.dr)} / ${f1(d.dr-2*m)} / ${f1(d.dr+2.5*m)} mm`);
   setRO('rA', a.toFixed(2) + ' mm');
-  setRO('rPos', `Ø${(2*a).toFixed(2)} mm / ${(360/n).toFixed(0)}° 均布 ×${n}`);
-  setRO('rD', `${f1(d.D)}（= 给定值，轮缘 ${d.rim.toFixed(1)}mm）`);
-  setRO('cAsm', d.asm ? `✓ (${zs}+${zr})/${n}=${(zs+zr)/n}` : `✗ (${zs}+${zr})/${n}=${((zs+zr)/n).toFixed(2)}`, d.asm ? 'ok' : 'warn');
+  setRO('rPos', `Ø${(2*a).toFixed(2)} mm / ${(360/n).toFixed(0)}° 均布 ×${n}${d.rv ? '（= 摆线轮曲轴孔分布圆）' : ''}`);
+  setRO('rD', d.rv ? `${f1(d.D)}（= 给定值，壳壁 ${d.rim.toFixed(1)}mm）`
+                   : `${f1(d.D)}（= 给定值，轮缘 ${d.rim.toFixed(1)}mm）`);
+  $('cAsmL').innerHTML = d.rv ? '装配条件（RV 无内齿圈，曲轴孔均布自定）'
+                              : '装配条件 (z<sub>s</sub>+z<sub>r</sub>)/n 整数';
+  setRO('cAsm', d.rv ? '✓ 不适用（RV 一体化）'
+                     : (d.asm ? `✓ (${zs}+${zr})/${n}=${(zs+zr)/n}` : `✗ (${zs}+${zr})/${n}=${((zs+zr)/n).toFixed(2)}`),
+        d.rv ? 'ok' : (d.asm ? 'ok' : 'warn'));
   setRO('cAdj', `${d.clearAdj.toFixed(2)} mm ${d.clearAdj >= 0.5 ? '✓' : '✗'}`, d.clearAdj >= 0.5 ? 'ok' : 'warn');
   setRO('cUc', zs >= 17 ? '✓ 不根切' : '⚠ 需正变位', zs >= 17 ? 'ok' : 'warn');
   setRO('cF', `${d.SF.toFixed(2)}（σ_F=${d.sigF.toFixed(0)}MPa，K_V=${d.KV.toFixed(2)}）${d.sFok ? '✓' : '✗'}`, d.sFok ? 'ok' : 'warn');
   setRO('cH', `${d.SH.toFixed(2)}（σ_H=${d.sigH.toFixed(0)}MPa，v=${d.v.toFixed(1)}m/s）${d.sHok ? '✓' : '✗'}`, d.sHok ? 'ok' : 'warn');
-  setRO('cD', d.m0 > 0 ? `✓ m=${m}，外径=给定 Ø${d.Dmax}，轮缘 ${d.rim.toFixed(1)} ≥ ${Math.max(3*m, 2).toFixed(1)}mm`
-                       : `✗ 给定外径 Ø${d.Dmax} 连最小模数都装不下`, d.m0 > 0 ? 'ok' : 'warn');
+  setRO('cD', d.rv ? `✓ m=${m}，行星齿顶 Ø${(2*(a + d.dp/2 + m)).toFixed(1)} ≤ 壳体孔 Ø${(2*d.rv.Rh).toFixed(1)}`
+                   : (d.m0 > 0 ? `✓ m=${m}，外径=给定 Ø${d.Dmax}，轮缘 ${d.rim.toFixed(1)} ≥ ${Math.max(3*m, 2).toFixed(1)}mm`
+                               : `✗ 给定外径 Ø${d.Dmax} 连最小模数都装不下`),
+        d.rv ? 'ok' : (d.m0 > 0 ? 'ok' : 'warn'));
   setRO('cMest', `${m} ≥ ${d.mE.toFixed(2)} mm ${m >= d.mE ? '✓' : '✗ 外径偏小或扭矩偏大'}`, m >= d.mE ? 'ok' : 'warn');
-  setRO('cWall', !d.brg ? `✗ 行星轮根圆 Ø${(2*d.rootP).toFixed(1)} < 最小轴承 623 需求 Ø${(10+2*d.sReq).toFixed(1)}：请加大外径 / 降扭矩 / 或改用滚针直配、轴套`
+  $('cWallL').textContent = d.rv ? '曲轴轴颈（行星轮孔=标准轴承内径）' : '行星轮轴承（标准件，孔=外圈）';
+  if (d.rv) setRO('cWall', !d.rv.crank ? `✗ 行星轮根圆 Ø${(2*d.rootP).toFixed(1)} 内放不下曲轴：加大外径 / 降扭矩`
+        : `✓ Ø${d.rv.crank.d}（${d.rv.crank.name} 内径）壁 ${d.rv.crank.wall.toFixed(1)}≥${d.rv.crank.sReq.toFixed(1)}`,
+        d.rv.crank ? 'ok' : 'warn');
+  else setRO('cWall', !d.brg ? `✗ 行星轮根圆 Ø${(2*d.rootP).toFixed(1)} < 最小轴承 623 需求 Ø${(10+2*d.sReq).toFixed(1)}：请加大外径 / 降扭矩 / 或改用滚针直配、轴套`
         : d.brg.lifeFail ? `✗ ${d.brg.name} 能装但寿命 ${d.brg.L10h.toFixed(0)}h < 5000h`
         : `✓ ${d.brg.name}（${d.brg.d}×${d.brg.D}×${d.brg.B}）壁 ${d.brg.wall.toFixed(1)}≥${d.sReq.toFixed(1)} L₁₀=${d.brg.L10h.toFixed(0)}h`,
         d.brg && !d.brg.lifeFail ? 'ok' : 'warn');
@@ -918,45 +1000,47 @@ function frame(now) {
                         : `⚠ Ø${d.shaft} 非标准内径，建议改 Ø${d.brgSug[0]}（${d.brgSug[3]}）`,
         d.brgIn ? 'ok' : 'warn');
 
-  // ---- RV 减速器（行星级 + 摆线级串联）：仅单级不满足时显示 ----
+  // ---- 真实 RV 减速器（2K-V 一体化）：仅单级不满足时显示 ----
   const mm2 = v => v.toFixed(2) + ' mm';
   drawCyclo(d);
   $('grpNoRV').style.display = d.rvMsg ? '' : 'none';
   if (d.rvMsg) $('noRVMsg').textContent = d.rvMsg;
   $('grpRV').style.display = d.rv ? '' : 'none';
   if (d.rv) {
-    const s1 = d.rv.s1;
-    setRO('rvS1', `${s1.zs} / ${s1.zp} / ${s1.zr} ・ ${mm2(s1.m)} / ${s1.b.toFixed(1)}mm / ${s1.iAct.toFixed(2)}`);
-    setRO('rvS1S', `${s1.sigF.toFixed(0)} / ${s1.sigH.toFixed(0)} MPa ${s1.sigF <= d.sFP && s1.sigH <= d.sHP ? '✓' : '✗'}`,
-          s1.sigF <= d.sFP && s1.sigH <= d.sHP ? 'ok' : 'warn');
-    setRO('rvMid', `${d.rv.Tin2.toFixed(2)} N·m · ${d.rv.nin2.toFixed(0)} rpm`);
-    setRO('rvZ', `${d.rv.zc}（奇数：双盘 180° 错相必需）${d.rv.overflow ? ' ✗ 需求超出单台 RV（z_c>87）' : ''}`);
-    setRO('rvZp', d.rv.zpin);
-    setRO('rvE', `${mm2(d.rv.e)}（K₁=${d.rv.k1Used.toFixed(2)}${Math.abs(d.rv.k1Used - d.cK1) > 1e-9 ? '，已自动下调' : ''}）`);
-    setRO('rvPd', mm2(d.rv.dPin) + '（标准滚子）');
-    setRO('rvDp', mm2(d.rv.Dp));
-    setRO('rvPA', `${d.rv.paDeg.toFixed(1)}° ${d.rv.paDeg >= 30 ? '✓' : '⚠ 偏小，可减小偏心距或针齿直径'}`,
-          d.rv.paDeg >= 30 ? 'ok' : 'warn');
-    setRO('rvValid', d.rv.valid ? '✓ 无奇异点' : '✗ 有奇异点（e 或针齿过大）', d.rv.valid ? 'ok' : 'warn');
-    setRO('rvRim', d.rv.rimOK ? `✓ 轮 Ø${(2*d.rv.outerDisc).toFixed(1)} / 针 Ø${(2*d.rv.outerPins).toFixed(1)} ≤ 壳体 Ø${d.Dmax}`
-                              : `✗ 轮 Ø${(2*d.rv.outerDisc).toFixed(1)} 或 针 Ø${(2*d.rv.outerPins).toFixed(1)} 超出壳体 Ø${d.Dmax}`,
-          d.rv.rimOK ? 'ok' : 'warn');
-    setRO('rvTh', `${mm2(d.rv.bCyc)}（强度需 ${d.rv.bStr.toFixed(2)}mm，F_max=${d.rv.Fmax.toFixed(0)}N；双盘时每盘一半）`);
-    setRO('rvCh', mm2(d.shaft));
-    setRO('rvOn', d.rv.nOut);
-    setRO('rvOp', mm2(d.rv.Dop));
-    setRO('rvHd', mm2(d.rv.dOut + 2*d.rv.e));
-    setRO('rvPd2', mm2(d.rv.dOut) + '（标准滚子）');
-    setRO('rvPinC', `销 Ø${d.rv.pinCore.toFixed(2)} / 套 Ø${d.rv.dPin.toFixed(2)}（套厚 ${d.rv.tP}）`);
-    setRO('rvOutC', `销 Ø${d.rv.outCore.toFixed(2)} / 套 Ø${d.rv.dOut.toFixed(2)}（套厚 ${d.rv.tO}）`);
+    const r = d.rv;
+    setRO('rvS1', `${r.zs} / ${r.zp} ・ ${r.u.toFixed(2)} ・ ${mm2(r.m)} / ${r.b.toFixed(1)}mm`);
+    setRO('rvS1S', `${r.sigF.toFixed(0)} / ${r.sigH.toFixed(0)} MPa（S_F=${r.SF.toFixed(2)} S_H=${r.SH.toFixed(2)}）${r.sFok && r.sHok ? '✓' : '✗'}`,
+          r.sFok && r.sHok ? 'ok' : 'warn');
+    setRO('rvCrankT', `${r.crankT.toFixed(3)} N·m（输入级小扭矩，共 ${n} 根）`);
+    setRO('rvZ', `${r.zc}（奇数：双盘 180° 错相必需）`);
+    setRO('rvZp', `${r.zpin}（偶数：针齿环 180° 对称 ✓）`);
+    setRO('rvE', `${mm2(r.e)}（K₁=${r.k1Used.toFixed(2)}${Math.abs(r.k1Used - d.cK1) > 1e-9 ? '，已自动下调' : ''}）`);
+    setRO('rvPd', mm2(r.dPin) + '（标准滚子）');
+    setRO('rvDp', mm2(r.Dp));
+    setRO('rvPA', `${r.paDeg.toFixed(1)}° ${r.paDeg >= 30 ? '✓' : '⚠ 偏小，可减小偏心距或针齿直径'}`,
+          r.paDeg >= 30 ? 'ok' : 'warn');
+    setRO('rvValid', r.valid ? '✓ 无奇异点' : '✗ 有奇异点（e 或针齿过大）', r.valid ? 'ok' : 'warn');
+    setRO('rvRim', r.rimOK ? `✓ 轮 Ø${(2*r.outerDisc).toFixed(1)} / 针 Ø${(2*r.outerPins).toFixed(1)} ≤ 壳体 Ø${d.Dmax}`
+                           : `✗ 轮 Ø${(2*r.outerDisc).toFixed(1)} 或 针 Ø${(2*r.outerPins).toFixed(1)} 超出壳体 Ø${d.Dmax}`,
+          r.rimOK ? 'ok' : 'warn');
+    setRO('rvTh', `${mm2(r.bCyc)}（强度需 ${r.bStr.toFixed(2)}mm，F_max=${r.Fmax.toFixed(0)}N；双盘时每盘一半）`);
+    setRO('rvPinC', `销 Ø${r.pinCore.toFixed(2)} / 套 Ø${r.dPin.toFixed(2)}（套厚 ${r.tP}）`);
+    setRO('rvCrank', r.crank ? `Ø${r.crank.d} mm（行星轮孔壁 ${r.crank.wall.toFixed(1)} ≥ ${r.crank.sReq.toFixed(1)} ✓）`
+                             : '✗ 行星轮内放不下曲轴（加大外径/降扭矩）',
+          r.crank ? 'ok' : 'warn');
+    setRO('rvCrankB', r.crank ? `${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）L₁₀=${r.crank.L10h.toFixed(0)}h ${r.crank.lifeFail ? '✗ <5000h' : '✓'}`
+                              : '—', r.crank && !r.crank.lifeFail ? 'ok' : 'warn');
+    setRO('rvCrankS', r.crank ? `${r.crank.sigB.toFixed(0)} MPa ≤ σ_FP=${d.sFP} ${r.crank.bendFail ? '✗' : '✓'}`
+                              : '—', r.crank && !r.crank.bendFail ? 'ok' : 'warn');
+    setRO('rvDiscH', `${n} 孔 ・ 分布圆 Ø${(2*r.a).toFixed(2)} ・ 孔径 Ø${r.crank ? r.crank.D : '?'}（轴承外圈）`);
     setRO('rvBrg', d.brgIn ? `✓ ${d.brgIn[3]}（${d.brgIn[0]}×${d.brgIn[1]}×${d.brgIn[2]}）`
                            : `⚠ 建议轴径改 Ø${d.brgSug[0]}（${d.brgSug[3]}）`,
           d.brgIn ? 'ok' : 'warn');
-    setRO('rvTot', `${d.rv.iTot.toFixed(2)} = ${s1.iAct.toFixed(2)} × ${d.rv.zc}（对需求 ${d.rv.iStar2.toFixed(1)} 偏差 ${(100*(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2).toFixed(1)}%）`,
-          Math.abs(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2 > 0.05 ? 'warn' : '');
-    setRO('rvN2', d.rv.n2.toFixed(1) + ' rpm');
-    setRO('rvI', `${d.rv.T2.toFixed(2)} ≥ 要求 ${T2reqNm.toFixed(2)} N·m ${d.rv.T2 >= T2reqNm ? '✓' : '✗'}`,
-          d.rv.T2 >= T2reqNm ? 'ok' : 'warn');
+    setRO('rvTot', `${r.iTot.toFixed(2)} = 1 + (${r.zp}/${r.zs})×${r.zpin}（对需求 ${r.iStar2.toFixed(1)} 偏差 ${(100*(r.iTot-r.iStar2)/r.iStar2).toFixed(1)}%）`,
+          Math.abs(r.iTot-r.iStar2)/r.iStar2 > 0.05 ? 'warn' : '');
+    setRO('rvN2', r.n2.toFixed(1) + ' rpm');
+    setRO('rvI', `${r.T2.toFixed(2)} ≥ 要求 ${T2reqNm.toFixed(2)} N·m ${r.T2 >= T2reqNm ? '✓' : '✗'}`,
+          r.T2 >= T2reqNm ? 'ok' : 'warn');
   }
 
   // ---- CAD 建模参数（对照 Spur Gear 插件配置项；背隙 0.04mm、齿根圆角 0.3·m 与绘图一致）----
@@ -972,27 +1056,30 @@ function frame(now) {
   };
   fillGear('cs', `Sun Gear ${zs} teeth`, zs, mm2(d.shaft), d.ds);
   fillGear('cp', `Planet Gear ${zp} teeth`, zp,
-           d.brg ? `${mm2(d.brg.D)}（${d.brg.name} 轴承外圈）` : mm2(2*d.holeR) + '（无标准轴承）', d.dp);
-  fillGear('cr', `Ring Gear ${zr} teeth (Internal)`, zr, '—（外缘=给定内齿圈外径）', d.dr);
+           d.rv ? (d.rv.crank ? `${mm2(d.rv.crank.d)}（曲轴轴颈，${d.rv.crank.name} 内径）` : '—（放不下曲轴）')
+                : (d.brg ? `${mm2(d.brg.D)}（${d.brg.name} 轴承外圈）` : mm2(2*d.holeR) + '（无标准轴承）'), d.dp);
+  $('grpRingC').style.display = d.rv ? 'none' : '';
+  if (!d.rv) fillGear('cr', `Ring Gear ${zr} teeth (Internal)`, zr, '—（外缘=给定内齿圈外径）', d.dr);
 
   // 摆线轮参数表（RV 模式时作为第四张表显示）
   $('grpCycC').style.display = d.rv ? '' : 'none';
   if (d.rv) {
-    $('cyName').textContent = `Cycloidal Gear ${d.rv.zc} teeth`;
-    $('cyZ').textContent = d.rv.zc;
-    $('cyE').textContent = mm2(d.rv.e);
-    $('cyPd').textContent = mm2(d.rv.dPin) + '（标准滚子）';
-    $('cyDp').textContent = mm2(d.rv.Dp);
-    $('cyPA').textContent = d.rv.paDeg.toFixed(1) + '°';
-    $('cyTh').textContent = mm2(d.rv.bCyc) + '（双盘减半）';
-    $('cyCh').textContent = mm2(d.shaft);
-    $('cyOn').textContent = d.rv.nOut;
-    $('cyHd').textContent = mm2(d.rv.dOut + 2*d.rv.e);
-    $('cyOp').textContent = mm2(d.rv.Dop);
-    $('cyPin').textContent = mm2(d.rv.dOut);
-    $('cyPinC').textContent = `销 Ø${d.rv.pinCore.toFixed(2)} / 套 Ø${d.rv.dPin.toFixed(2)}（标准滚子）`;
-    $('cyOutC').textContent = `销 Ø${d.rv.outCore.toFixed(2)} / 套 Ø${d.rv.dOut.toFixed(2)}（标准滚子）`;
-    $('cyRim').textContent = `Ø${(2*d.rv.outerDisc).toFixed(1)} ≤ Ø${d.Dmax} ${d.rv.rimOK ? '✓' : '✗'}`;
+    const r = d.rv;
+    $('cyName').textContent = `Cycloidal Gear ${r.zc} teeth ×2`;
+    $('cyZ').textContent = r.zc;
+    $('cyE').textContent = mm2(r.e);
+    $('cyPd').textContent = mm2(r.dPin) + '（标准滚子）';
+    $('cyDp').textContent = mm2(r.Dp);
+    $('cyPA').textContent = r.paDeg.toFixed(1) + '°';
+    $('cyTh').textContent = mm2(r.bCyc) + '（双盘减半）';
+    $('cyCh').textContent = '—（RV 摆线轮无中心孔，按需）';
+    $('cyOn').textContent = n + '（曲轴孔）';
+    $('cyHd').textContent = r.crank ? mm2(r.crank.D) + '（曲轴轴承外圈）' : '—';
+    $('cyOp').textContent = mm2(2*r.a) + '（= 2a，同行星轮分布圆）';
+    $('cyPin').textContent = r.crank ? mm2(r.crank.d) + '（曲轴轴颈）' : '—';
+    $('cyPinC').textContent = `销 Ø${r.pinCore.toFixed(2)} / 套 Ø${r.dPin.toFixed(2)}（标准滚子）`;
+    $('cyOutC').textContent = r.crank ? `${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）` : '—';
+    $('cyRim').textContent = `Ø${(2*r.outerDisc).toFixed(1)} ≤ Ø${d.Dmax} ${r.rimOK ? '✓' : '✗'}`;
     $('cyBrg').textContent = d.brgIn ? `${d.brgIn[3]}（${d.brgIn[0]}×${d.brgIn[1]}×${d.brgIn[2]}）`
                                      : `Ø${d.shaft} 非标准内径，建议 Ø${d.brgSug[0]}`;
   }
@@ -1007,10 +1094,11 @@ function frame(now) {
   $('vZoom').textContent = zoom.toFixed(1) + ' px/mm';
   const ws = 0.9, thS = ws*tAnim;
   const thC = thS/iAct;
-  const wp = (ws/iAct) - (ws - ws/iAct)*zs/zp;
+  // 行星轮（曲轴）绝对转速：单级按固定内齿圈 2K-H；RV 为 ω_曲轴 = −z_c·ω_行星架
+  const wp = d.rv ? -d.rv.zc*ws/iAct : (ws/iAct) - (ws - ws/iAct)*zs/zp;
   const gs = gearOutline(m, zs, 0.04, 0.3*m);
   const gp = gearOutline(m, zp, 0.04, 0.3*m);
-  const gr = ringOutline(m, zr, d.rim);
+  const gr = d.rv ? null : ringOutline(m, zr, d.rim);
 
   ctx.clearRect(0, 0, W, H);
   const cx = W/2, cy = H/2;
@@ -1025,11 +1113,25 @@ function frame(now) {
     const thP0 = (phi0 + Math.PI - Math.PI/zp) + u0*zs/zp;
     planets.push({ phi: phi0 + thC, rot: thP0 + wp*tAnim, thP0 });
   }
-  // 与 0 号行星轮在内齿圈 φ=0 处正确啮合：θ_r = −(v0·zp/zr + π/zr)
-  const v0 = ((0 - planets[0].thP0) % pitchP + pitchP) % pitchP;
-  const thR = (-Math.PI/zr) - v0*zp/zr;
-
-  drawRing(cx, cy, zoom, thR, gr);
+  if (d.rv) {
+    // RV：无内齿圈 —— 针齿壳（固定）：壳体外圆、壳体孔、针齿
+    ctx.strokeStyle = '#9fb0c0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, d.Dmax/2*zoom, 0, 2*Math.PI); ctx.stroke();
+    ctx.strokeStyle = '#5d6d7e'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(cx, cy, d.rv.Rh*zoom, 0, 2*Math.PI); ctx.stroke();
+    ctx.fillStyle = '#c9a227'; ctx.strokeStyle = '#e8d06a'; ctx.lineWidth = 1;
+    for (let k = 0; k < d.rv.zpin; k++) {
+      const aa = k*2*Math.PI/d.rv.zpin;
+      ctx.beginPath();
+      ctx.arc(cx + d.rv.Rp*Math.cos(aa)*zoom, cy + d.rv.Rp*Math.sin(aa)*zoom, d.rv.rp*zoom, 0, 2*Math.PI);
+      ctx.fill(); ctx.stroke();
+    }
+  } else {
+    // 与 0 号行星轮在内齿圈 φ=0 处正确啮合：θ_r = −(v0·zp/zr + π/zr)
+    const v0 = ((0 - planets[0].thP0) % pitchP + pitchP) % pitchP;
+    const thR = (-Math.PI/zr) - v0*zp/zr;
+    drawRing(cx, cy, zoom, thR, gr);
+  }
 
   ctx.save(); ctx.translate(cx, cy);
   ctx.beginPath();
@@ -1066,13 +1168,15 @@ function frame(now) {
   if (showAnnot) drawAnnot(d, gs, cx, cy, zoom);
 
   ctx.fillStyle = '#9fb0c0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(`zs=${zs}  zp=${zp} ×${n}  zr=${zr}  m=${m}mm  b=${d.b.toFixed(1)}mm  i=${iAct.toFixed(2)}  D=${d.D.toFixed(1)}mm${d.rv ? '（RV 第一级 · 行星级）' : ''}`, cx, 26);
-  const rvOK = d.rv && d.rv.T2 >= d.T2req/1000 && d.rv.valid && !d.rv.overflow
+  ctx.fillText(d.rv ? `zs=${zs}  zp=${zp} ×${n}（轴=曲轴）  m=${m}mm  b=${d.b.toFixed(1)}mm  i=1+(${zp}/${zs})×${d.rv.zpin}=${iAct.toFixed(1)}  壳体Ø${d.Dmax.toFixed(0)}（RV 一体化，针齿壳固定）`
+                    : `zs=${zs}  zp=${zp} ×${n}  zr=${zr}  m=${m}mm  b=${d.b.toFixed(1)}mm  i=${iAct.toFixed(2)}  D=${d.D.toFixed(1)}mm`, cx, 26);
+  const rvOK = d.rv && d.rv.T2 >= d.T2req/1000 && d.rv.valid && d.rv.strong && d.rv.rimOK
+               && d.rv.crank && !d.rv.crank.lifeFail && !d.rv.crank.bendFail
                && Math.abs(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2 <= 0.05;
   ctx.fillStyle = (d.okAll || rvOK) ? '#8ef0c1' : '#ff8a8a';
   ctx.font = 'bold 13px sans-serif';
   ctx.fillText(d.okAll ? '✓ 单级全部校核通过'
-               : (rvOK ? `✓ RV 方案：i = ${iAct.toFixed(2)} × ${d.rv.zc} = ${d.rv.iTot.toFixed(1)}，摆线级见下图`
+               : (rvOK ? `✓ RV 方案：i = 1 + (${zp}/${zs})×${d.rv.zpin} = ${d.rv.iTot.toFixed(1)}，摆线级见下图`
                        : (d.rvMsg ? '⚠ 单级不满足且 RV 不适用，见右侧建议'
                                   : '⚠ 存在未通过项，见右侧校核结论与 RV 方案')), cx, H-16);
 
