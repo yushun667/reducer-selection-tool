@@ -109,6 +109,7 @@
     <button id="btnPause">暂停</button>
     <button id="btnAdj" class="on">邻接检查</button>
     <button id="btnPitch" class="on">节圆</button>
+    <button id="btnDXF">导出齿形 DXF</button>
   </div>
 </div>
 <div class="panel">
@@ -1301,6 +1302,83 @@ function frame(now) {
 
   requestAnimationFrame(frame);
 }
+
+// ---------- 导出齿形 DXF（Fusion：设计 → 插入 → 插入 DXF，单位 mm） ----------
+function buildDXF(d) {
+  const ents = [];
+  const lw = (pts, ox, layer) => {
+    ents.push('0', 'LWPOLYLINE', '100', 'AcDbEntity', '8', layer,
+              '100', 'AcDbPolyline', '90', String(pts.length), '70', '1');
+    for (const [x, y] of pts) ents.push('10', (x + ox).toFixed(4), '20', y.toFixed(4));
+  };
+  const circ = (x, y, r, layer) =>
+    ents.push('0', 'CIRCLE', '100', 'AcDbEntity', '8', layer,
+              '100', 'AcDbCircle', '10', x.toFixed(4), '20', y.toFixed(4), '40', r.toFixed(4));
+  const mark = (x, y, layer) =>
+    ents.push('0', 'POINT', '100', 'AcDbEntity', '8', layer,
+              '100', 'AcDbPoint', '10', x.toFixed(4), '20', y.toFixed(4), '30', '0');
+  const parts = [];
+  // 太阳轮（含变位齿形 + 输入轴孔）
+  const gs = gearOutline(d.m, d.zs, 0.04, 0.3*d.m, d.xs);
+  parts.push({ layer: '01-sun', pts: gs.pts, holes: [[0, 0, d.shaft/2]] });
+  // 行星轮（含变位齿形 + 轴承孔/曲轴孔）
+  const gp = gearOutline(d.m, d.zp, 0.04, 0.3*d.m, d.xp);
+  parts.push({ layer: '02-planet', pts: gp.pts, holes: [[0, 0, d.holeR]] });
+  if (d.rv) {
+    const r = d.rv;
+    // 摆线轮（轮廓 + n 个曲轴孔，孔径=曲轴轴承外圈，分布圆 2a）
+    const holes = [];
+    for (let j = 0; j < d.n; j++) {
+      const aa = j*2*Math.PI/d.n;
+      holes.push([r.a*Math.cos(aa), r.a*Math.sin(aa), (r.crank ? r.crank.D : 6)/2]);
+    }
+    parts.push({ layer: '03-cycloid', pts: r.pts, holes });
+    // 针齿位置 + 壳体（钻孔/车壳草图用）
+    const pins = [];
+    for (let k = 0; k < r.zpin; k++) {
+      const aa = k*2*Math.PI/r.zpin;
+      pins.push([r.Rp*Math.cos(aa), r.Rp*Math.sin(aa), r.rp]);
+    }
+    parts.push({ layer: '04-pins-housing', circles: pins,
+                 extra: [[0, 0, d.Dmax/2], [0, 0, r.Rh]] });
+  } else {
+    // 内齿圈（齿形 + 外圆 = 给定外径）
+    const gr = ringOutline(d.m, d.zr, d.rim);
+    parts.push({ layer: '03-ring', pts: gr.pts, extra: [[0, 0, d.Dmax/2]] });
+  }
+  // 排版：各零件并排间隔 5mm，各带中心 POINT 标记便于对齐
+  let ox = 0;
+  for (const p of parts) {
+    const R = p.pts ? Math.max(...p.pts.map(([x, y]) => Math.hypot(x, y)))
+                    : (p.extra ? p.extra[0][2] : 10);
+    const cxp = ox + (ox > 0 ? R + 5 : R);
+    if (p.pts) lw(p.pts, cxp, p.layer);
+    (p.holes || []).forEach(h => circ(h[0] + cxp, h[1], h[2], p.layer));
+    (p.circles || []).forEach(c => circ(c[0] + cxp, c[1], c[2], p.layer));
+    (p.extra || []).forEach(c => circ(c[0] + cxp, c[1], c[2], p.layer));
+    mark(cxp, 0, p.layer);
+    ox = cxp + R;
+  }
+  return '0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1027\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n'
+       + '0\nSECTION\n2\nENTITIES\n' + ents.join('\n') + '\n0\nENDSEC\n0\nEOF\n';
+}
+$('btnDXF').onclick = e => {
+  const d = design();
+  const dxf = buildDXF(d);
+  const name = `齿形_zs${d.zs}_zp${d.zp}${d.rv ? '_zc' + d.rv.zc : ''}.dxf`;
+  try { navigator.clipboard.writeText(dxf); } catch (err) {}
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([dxf], { type: 'application/dxf' }));
+    a.download = name; a.click();
+  } catch (err) {}
+  const rct = e.target.getBoundingClientRect();
+  tipEl.textContent = `已导出 ${name}（内容同时已复制到剪贴板，下载无反应时可粘贴另存为 .dxf）。Fusion：设计 → 插入 → 插入 DXF，单位选 mm，按图层勾选。`;
+  tipEl.style.left = Math.min(rct.left, window.innerWidth - 400) + 'px';
+  tipEl.style.top = (rct.bottom + 8) + 'px';
+  tipEl.style.display = 'block';
+  setTimeout(() => { tipEl.style.display = 'none'; }, 5000);
+};
 
 $('mat').onchange = e => {
   const [f, h] = e.target.value.split(',');
