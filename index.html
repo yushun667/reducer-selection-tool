@@ -395,7 +395,7 @@ function arrowHead(x, y, tang, s) {
   ctx.lineTo(x + s*0.45*Math.cos(tang - 2.6), y + s*0.45*Math.sin(tang - 2.6));
   ctx.closePath(); ctx.fill();
 }
-function drawAnnot(d, gs, cx, cy, zoom) {
+function drawAnnot(d, gs, cx, cy, zoom, planets) {
   const Y = '#ffd166';
   ctx.save();
   ctx.strokeStyle = Y; ctx.fillStyle = Y; ctx.lineWidth = 1.4;
@@ -438,6 +438,23 @@ function drawAnnot(d, gs, cx, cy, zoom) {
   ctx.beginPath(); ctx.moveTo(px, py);
   ctx.lineTo(px + 24, py + 18); ctx.lineTo(px + 66, py + 18); ctx.stroke();
   tag(px + 68, py + 16, `输入轴 Ø${d.shaft.toFixed(1)}`, 'left');
+
+  // 行星轮孔径（单级=轴承外圈；RV=曲轴轴颈）引线，取当前最靠下的行星轮向外引出
+  if (planets && planets.length && d.holeR > 0) {
+    let pb = planets[0];
+    for (const p of planets) if (Math.sin(p.phi) > Math.sin(pb.phi)) pb = p;
+    const gx = cx + Math.cos(pb.phi)*d.a*zoom, gy = cy + Math.sin(pb.phi)*d.a*zoom;
+    const gAng = Math.atan2(gy - cy, gx - cx);          // 径向朝外
+    const hx = gx + Math.cos(gAng)*d.holeR*zoom, hy = gy + Math.sin(gAng)*d.holeR*zoom;
+    const lx = hx + Math.cos(gAng)*20, ly = hy + Math.sin(gAng)*20;
+    const lDir = Math.cos(gAng) >= 0 ? 1 : -1;
+    ctx.beginPath(); ctx.moveTo(hx, hy);
+    ctx.lineTo(lx, ly); ctx.lineTo(lx + lDir*40, ly); ctx.stroke();
+    const holeTxt = d.rv
+      ? `曲轴 Ø${(2*d.holeR).toFixed(1)}（${d.brg ? d.brg.name + ' 内径' : '无合适轴承'}）`
+      : `行星轮孔 Ø${(2*d.holeR).toFixed(1)}（${d.brg ? d.brg.name + ' 外圈' : '估算'}）`;
+    tag(lx + lDir*42, ly - 2, holeTxt, lDir > 0 ? 'left' : 'right');
+  }
 
   // 图例框：输入参数在图中的位置
   const lines = [
@@ -931,6 +948,36 @@ function drawCyclo(d) {
   ctx2.fillStyle = '#ffd166';
   ctx2.beginPath(); ctx2.arc(cx + ex*zoom, cy + ey*zoom, 3, 0, 2*Math.PI); ctx2.fill();
 
+  // 孔径标注：曲轴孔（=轴承外圈）、曲轴轴颈（=轴承内径）、针齿
+  const tag2 = (x, y, text, align) => {
+    ctx2.font = '12px sans-serif';
+    const w = ctx2.measureText(text).width;
+    let bx = align === 'right' ? x - w - 6 : x - 6;
+    bx = Math.max(4, Math.min(bx, W2 - w - 16));       // 不超出画布
+    ctx2.fillStyle = 'rgba(20,26,35,0.88)';
+    ctx2.fillRect(bx, y - 11, w + 12, 17);
+    ctx2.fillStyle = '#ffd166'; ctx2.textAlign = 'left';
+    ctx2.fillText(text, bx + 6, y + 2);
+  };
+  if (r.crank) {
+    const hAng = thD;                                  // 0 号曲轴孔/曲轴当前角度
+    const hx = cx + (ex + r.a*Math.cos(hAng))*zoom, hy = cy + (ey + r.a*Math.sin(hAng))*zoom;
+    ctx2.strokeStyle = '#ffd166'; ctx2.lineWidth = 1.2;
+    ctx2.beginPath(); ctx2.moveTo(hx, hy);
+    ctx2.lineTo(hx + 18, hy - 14); ctx2.lineTo(hx + 58, hy - 14); ctx2.stroke();
+    tag2(hx + 60, hy - 16, `曲轴孔 Ø${r.crank.D}（${r.crank.name} 外圈）· 分布圆 Ø${(2*r.a).toFixed(1)}`);
+    const jx = cx + r.a*Math.cos(hAng)*zoom, jy = cy + r.a*Math.sin(hAng)*zoom;
+    ctx2.beginPath(); ctx2.moveTo(jx, jy);
+    ctx2.lineTo(jx - 18, jy + 14); ctx2.lineTo(jx - 58, jy + 14); ctx2.stroke();
+    tag2(jx - 60, jy + 12, `曲轴 Ø${r.crank.d}（内径）`, 'right');
+  }
+  const pAng = 2.5*2*Math.PI/r.zpin;                   // 左下一个针齿
+  const qx = cx + r.Rp*Math.cos(pAng)*zoom, qy = cy + r.Rp*Math.sin(pAng)*zoom;
+  ctx2.strokeStyle = '#ffd166'; ctx2.lineWidth = 1.2;
+  ctx2.beginPath(); ctx2.moveTo(qx, qy);
+  ctx2.lineTo(qx - 18, qy + 14); ctx2.lineTo(qx - 58, qy + 14); ctx2.stroke();
+  tag2(qx - 60, qy + 12, `针齿 Ø${r.dPin.toFixed(2)}（销 Ø${r.pinCore.toFixed(2)}+套）`, 'right');
+
   // 标注
   ctx2.fillStyle = '#9fb0c0'; ctx2.font = '12px sans-serif'; ctx2.textAlign = 'center';
   ctx2.fillText(`RV 摆线级（俯视）：针齿×${r.zpin}（黄，固定）  摆线轮（灰，随行星架 ${r.n2.toFixed(1)}rpm）  曲轴×${d.n}（绿，轴心→盘心 = 偏心 e=${r.e.toFixed(2)}mm）`, W2/2, 22);
@@ -1165,7 +1212,7 @@ function frame(now) {
     ctx.setLineDash([]);
   }
 
-  if (showAnnot) drawAnnot(d, gs, cx, cy, zoom);
+  if (showAnnot) drawAnnot(d, gs, cx, cy, zoom, planets);
 
   ctx.fillStyle = '#9fb0c0'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText(d.rv ? `zs=${zs}  zp=${zp} ×${n}（轴=曲轴）  m=${m}mm  b=${d.b.toFixed(1)}mm  i=1+(${zp}/${zs})×${d.rv.zpin}=${iAct.toFixed(1)}  壳体Ø${d.Dmax.toFixed(0)}（RV 一体化，针齿壳固定）`
