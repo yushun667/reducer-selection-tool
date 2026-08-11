@@ -54,8 +54,8 @@
 </style>
 </head>
 <body>
-<h1>行星齿轮（NGW 型）· 参数确定全流程演示</h1>
-<div class="sub">左侧是按你输入的参数<b>真实配齿并实时绘制</b>的行星轮系：太阳轮（中）→ 行星轮 ×n → 内齿圈（外圈固定）→ 行星架（输出）。下面的面板走完整个设计流程：传动比 → 配齿三条件 → 模数齿宽 → 强度校核。</div>
+<h1>行星齿轮（NGW 型）· 参数确定全流程演示（附：RV 一体化减速器）</h1>
+<div class="sub">左侧是按你输入的参数<b>真实配齿并实时绘制</b>的行星轮系：太阳轮（中）→ 行星轮 ×n → 内齿圈（外圈固定）→ 行星架（输出）。下面的面板走完整个设计流程：传动比 → 配齿三条件 → 模数齿宽 → 强度校核。<b>文末 RV 章节</b>讲单级不够用时业界的一体化方案（2K-V 型，与选型工具的 RV 模式一致）。</div>
 <canvas id="cv" width="820" height="820"></canvas>
 <div class="panel">
   <div class="grp">
@@ -172,6 +172,39 @@
   <h2><span class="tag">第 6 步</span>补充：n 与均载的权衡</h2>
   n 在第 1 步选定，但它同时影响两端：n 越多，每个行星轮分到的扭矩越小（第 3 步 m 可更小），但邻接条件越紧、且必须配浮动均载构件（太阳轮浮动 / 内齿圈浮动 / 行星架浮动）才能压低 K<sub>p</sub>。n=3 对加工装配误差最宽容，是默认选择。
 
+  <h2><span class="tag">扩展</span>RV 减速器（2K-V 一体化）：单级行星不够用时</h2>
+  需求传动比超出单级 3~9 时，业界（纳博、双环、住友）的做法<b>不是</b>把两台独立减速器串起来（速比相乘），而是一体化结构：
+  <ul>
+    <li><b>没有内齿圈</b>：太阳轮直接驱动 2~3 个行星轮；</li>
+    <li><b>行星轮轴 = 曲轴</b>：轴上带两个 180° 错相的偏心段，各装一片摆线轮（双盘错相抵消惯性力）；</li>
+    <li><b>摆线轮与固定的针齿壳啮合</b>（针齿数 = z<sub>c</sub>+1）；</li>
+    <li><b>行星架就是输出端</b>：摆线轮的转动由"曲轴—行星架"闭环约束，<b>没有输出柱销盘</b>。</li>
+  </ul>
+
+  <h2><span class="tag">RV-1</span>运动学：速比是差动关系，不是两级相乘</h2>
+  <div class="io"><span class="tg calc">计算</span>两套啮合各写一条转化轮系方程（ω₁ 太阳轮、ω₂ 行星轮/曲轴自转、ω<sub>H</sub> 行星架）：</div>
+  <div class="fx">(ω₁−ω<sub>H</sub>)/(ω₂−ω<sub>H</sub>) = −z<sub>p</sub>/z<sub>s</sub>　（太阳-行星，外啮合）<br>ω<sub>H</sub> = −ω₂/z<sub>c</sub>　（摆线轮随行星架，针齿固定）</div>
+  <div class="where">式中：z<sub>s</sub>、z<sub>p</sub> — 太阳轮、行星轮齿数；z<sub>c</sub> — 摆线轮齿数（针齿数 = z<sub>c</sub>+1）。第二条是摆线"一齿差"关系加结构闭环：曲轴每相对转一圈，摆线轮只差 1/z<sub>c</sub> 圈，而摆线轮的角位置被曲轴-行星架平行四边形约束为与行星架同步。</div>
+  <div class="fx">联立 ⇒　i = ω₁/ω<sub>H</sub> = 1 + (z<sub>p</sub>/z<sub>s</sub>)·(z<sub>c</sub>+1)</div>
+  <div class="where">例：纳博 RV-40E-121 = 1+3×40（u=z<sub>p</sub>/z<sub>s</sub>=3，针齿 40）。同一壳体出系列速比：只换太阳轮/行星轮齿数，摆线级不动（u 取 2/3/4 → i = 81/121/161）。</div>
+
+  <h2><span class="tag">RV-2</span>扭矩流：摆线级扛大头，行星级只传小扭矩</h2>
+  <ul>
+    <li>行星级：只传输入级扭矩（太阳轮 T₁，单根曲轴扭矩 = T₁·z<sub>p</sub>/(n·z<sub>s</sub>)）⇒ <b>模数可以很小</b>；</li>
+    <li>摆线级：承受几乎全部输出扭矩 T₂ = T₁·i·η₁η₂，且约半数针齿同时承载 ⇒ <b>这是 RV 刚度高的根本原因，设计时先定摆线级</b>。</li>
+  </ul>
+
+  <h2><span class="tag">RV-3</span>RV 设计流程（输入 → 输出）</h2>
+  <ol>
+    <li>需求：T₂、i*、n₁、外径 D、寿命；</li>
+    <li>拆速比：选 z<sub>c</sub>（<b>奇数</b>，9~59——双盘 180° 错相的几何必然）与 u = z<sub>p</sub>/z<sub>s</sub>（1~4），使 1+u(z<sub>c</sub>+1) ≈ i*；</li>
+    <li>先定摆线级：针齿节圆 D<sub>p</sub> = 0.8D → 针径 ≈ 半节距（取标准滚子）→ 偏心距 e = K₁·R<sub>p</sub>/z<sub>c</sub>（短幅系数 K₁ = 0.5~0.75）→ 校最小压力角 ≥30°、曲线无奇异点；</li>
+    <li>再定渐开线级：只按 T₁ 选小模数，行星齿顶 ≤ 壳体孔；</li>
+    <li>曲轴：轴颈 = 行星轮孔 = <b>标准轴承内径</b>；轴承外圈即摆线轮曲轴孔；<b>曲轴孔分布圆 = 2a，与行星轮分布圆天然相同</b>（一体化结构的必然结果）；</li>
+    <li>校核：行星级 σ<sub>F</sub>/σ<sub>H</sub>（同第 5 步）；摆线接触 F<sub>max</sub> ≈ 4T₂/(K₁·z<sub>针</sub>·R<sub>p</sub>) → 轮厚 b<sub>c</sub> ≥ F<sub>max</sub>·Z<sub>E</sub>²/(σ<sub>HP</sub>²·d<sub>针</sub>)；曲轴弯曲 σ = 32M/(πd³)；曲轴轴承寿命 L₁₀ ≥ 5000h。</li>
+  </ol>
+  <div class="io"><span class="tg out">输出</span><b>z<sub>s</sub>、z<sub>p</sub>、z<sub>c</sub>、m、b、e、D<sub>p</sub>、d<sub>针</sub>、曲轴轴颈与轴承型号、b<sub>c</sub>、全部校核结论</b>。结构对照见 <a href="RV结构剖视示意图.html" style="color:#7cc4ff">RV 结构剖视示意图</a>；三维装配模型在 resource/rv-structure/（FreeCAD 打开 RV结构模型.FCStd）。</div>
+
   <h2><span class="tag">总结</span>每个输出参数由谁决定</h2>
   <table>
     <tr><th>输出参数</th><th>由什么决定</th><th>怎么算</th></tr>
@@ -204,6 +237,11 @@
     <tr><td>σ<sub>H</sub>、σ<sub>F</sub></td><td>计算接触应力、计算弯曲应力</td><td>MPa</td></tr>
     <tr><td>σ<sub>HP</sub>、σ<sub>FP</sub></td><td>许用接触应力、许用弯曲应力（由材料热处理与寿命定）</td><td>MPa</td></tr>
     <tr><td>K<sub>p</sub></td><td>行星轮间载荷分配不均系数（1.1~1.8，取决于均载措施）</td><td>—</td></tr>
+    <tr><td>z<sub>c</sub>、z<sub>针</sub></td><td>RV 摆线级：摆线轮齿数（奇数）；针齿数 = z<sub>c</sub>+1（偶数）</td><td>—</td></tr>
+    <tr><td>e</td><td>RV 摆线级：偏心距（曲轴偏心量）</td><td>mm</td></tr>
+    <tr><td>K₁</td><td>RV 摆线级：短幅系数 K₁ = e·z<sub>c</sub>/R<sub>p</sub>，取 0.5~0.75</td><td>—</td></tr>
+    <tr><td>D<sub>p</sub>、d<sub>针</sub></td><td>RV 摆线级：针齿节圆直径（≈0.8 倍壳体外径）；针齿（套）直径（标准滚子）</td><td>mm</td></tr>
+    <tr><td>b<sub>c</sub></td><td>RV 摆线级：摆线轮厚度，由针齿接触强度定（双盘时每盘一半）</td><td>mm</td></tr>
   </table>
 </div>
 

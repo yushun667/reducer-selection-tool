@@ -454,6 +454,30 @@ function drawAnnot(d, gs, cx, cy, zoom, planets) {
       ? `曲轴 Ø${(2*d.holeR).toFixed(1)}（${d.brg ? d.brg.name + ' 内径' : '无合适轴承'}）`
       : `行星轮孔 Ø${(2*d.holeR).toFixed(1)}（${d.brg ? d.brg.name + ' 外圈' : '估算'}）`;
     tag(lx + lDir*42, ly - 2, holeTxt, lDir > 0 ? 'left' : 'right');
+    // 行星轮齿顶圆：沿径向偏一点引出，避免与孔径引线重叠
+    const tAng = gAng - 0.55;
+    const tx = gx + Math.cos(tAng)*(d.dp/2 + d.m)*zoom, ty = gy + Math.sin(tAng)*(d.dp/2 + d.m)*zoom;
+    const tx2 = tx + Math.cos(tAng)*16, ty2 = ty + Math.sin(tAng)*16;
+    const tDir = Math.cos(tAng) >= 0 ? 1 : -1;
+    ctx.beginPath(); ctx.moveTo(tx, ty);
+    ctx.lineTo(tx2, ty2); ctx.lineTo(tx2 + tDir*40, ty2); ctx.stroke();
+    tag(tx2 + tDir*42, ty2 - 2, `行星轮齿顶 Ø${(d.dp + 2*d.m).toFixed(1)}`, tDir > 0 ? 'left' : 'right');
+  }
+
+  // 太阳轮齿顶圆：向右下方引出（与输入轴孔引线错开角度）
+  const sa = 1.35;
+  const sx = cx + Math.cos(sa)*(d.ds/2 + d.m)*zoom, sy = cy + Math.sin(sa)*(d.ds/2 + d.m)*zoom;
+  ctx.beginPath(); ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + 20, sy + 14); ctx.lineTo(sx + 62, sy + 14); ctx.stroke();
+  tag(sx + 64, sy + 12, `太阳轮齿顶 Ø${(d.ds + 2*d.m).toFixed(1)}`, 'left');
+
+  // 内齿圈齿顶（内径）：仅单级，向右下方引出（左上被图例框占）
+  if (!d.rv) {
+    const ra2 = 0.9;
+    const rx = cx + Math.cos(ra2)*(d.dr/2 - d.m)*zoom, ry = cy + Math.sin(ra2)*(d.dr/2 - d.m)*zoom;
+    ctx.beginPath(); ctx.moveTo(rx, ry);
+    ctx.lineTo(rx + 16, ry + 10); ctx.lineTo(rx + 56, ry + 10); ctx.stroke();
+    tag(rx + 58, ry + 8, `内齿圈齿顶 Ø${(d.dr - 2*d.m).toFixed(1)}（内）`, 'left');
   }
 
   // 图例框：输入参数在图中的位置
@@ -977,6 +1001,17 @@ function drawCyclo(d) {
   ctx2.beginPath(); ctx2.moveTo(qx, qy);
   ctx2.lineTo(qx - 18, qy + 14); ctx2.lineTo(qx - 58, qy + 14); ctx2.stroke();
   tag2(qx - 60, qy + 12, `针齿 Ø${r.dPin.toFixed(2)}（销 Ø${r.pinCore.toFixed(2)}+套）`, 'right');
+  // 摆线轮最大外缘：找当前轮廓最远点引出
+  let mi = 0, mr = 0;
+  for (let i2 = 0; i2 < r.pts.length; i2++) {
+    const rr = Math.hypot(r.pts[i2][0], r.pts[i2][1]);
+    if (rr > mr) { mr = rr; mi = i2; }
+  }
+  const mAng = Math.atan2(r.pts[mi][1], r.pts[mi][0]) + thD;
+  const mx = cx + (ex + mr*Math.cos(mAng))*zoom, my = cy + (ey + mr*Math.sin(mAng))*zoom;
+  ctx2.beginPath(); ctx2.moveTo(mx, my);
+  ctx2.lineTo(mx - 18, my - 14); ctx2.lineTo(mx - 58, my - 14); ctx2.stroke();
+  tag2(mx - 60, my - 16, `摆线轮外缘 Ø${(2*r.outerDisc).toFixed(1)}（含偏心）`, 'right');
 
   // 标注
   ctx2.fillStyle = '#9fb0c0'; ctx2.font = '12px sans-serif'; ctx2.textAlign = 'center';

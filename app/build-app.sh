@@ -15,7 +15,7 @@ mkdir -p "$MACOS_DIR" "$RES_DIR"
 swiftc -O app/main.swift -o "$MACOS_DIR/reducer-tool" -framework Cocoa -framework WebKit
 
 echo "==> 拷贝资源"
-cp index.html planetary_gear_params.html "$RES_DIR/"
+cp index.html planetary_gear_params.html RV结构剖视示意图.html "$RES_DIR/"
 cp app/Info.plist "$APP_DIR/Contents/Info.plist"
 
 echo "==> 生成图标"
