@@ -182,7 +182,7 @@
     <div class="ro"><span>总传动比 i = 1 + (z<sub>p</sub>/z<sub>s</sub>)·(z<sub>c</sub>+1)</span><b id="rvTot"></b></div>
     <div class="ro"><span>输出转速 n₂</span><b id="rvN2"></b></div>
     <div class="ro"><span>输出扭矩 T₂ = T₁·i·η₁η₂</span><b id="rvI"></b></div>
-    <div class="note">真实 RV 结构（纳博型）：无内齿圈、无输出柱销盘。行星轮压在曲轴上，曲轴偏心段装两片摆线轮（180° 错相）；摆线轮与固定针齿壳啮合，<b>行星架即输出端</b>。速比为差动关系 i = 1+(z_p/z_s)·(z_c+1)（例：纳博 RV-40E-121 = 1+3×40），不是两级相乘。摆线级承受几乎全部输出扭矩（约半数针齿同时承载），是整机刚度的主要来源；行星级只传输入级小扭矩，故模数可小。<b>渐开线级与摆线级轴向错开布置</b>，俯视图中行星轮与针齿的径向重叠不干涉。校核为简化估算，定型前须按标准完整校核。</div>
+    <div class="note">真实 RV 结构（纳博型）：无内齿圈、无输出柱销盘。行星轮压在曲轴上，曲轴偏心段装两片摆线轮（180° 错相）；摆线轮与固定针齿壳啮合，<b>行星架即输出端</b>。速比为差动关系 i = 1+(z_p/z_s)·(z_c+1)（例：纳博 RV-40E-121 = 1+3×40），不是两级相乘。摆线级承受几乎全部输出扭矩（约半数针齿同时承载），是整机刚度的主要来源；行星级只传输入级小扭矩，故模数可小。<b>行星齿顶限制在针齿内切圆以内</b>（图中灰虚线圈，留 1mm 余量），俯视图无重叠干涉；两级轴向错开布置。校核为简化估算，定型前须按标准完整校核。</div>
   </div>
 </div>
 <div class="grp out cad">
@@ -773,8 +773,9 @@ function design() {
           // 根切自动处理：z<17 取最小正变位；角度变位工作中心距（单位模数）
           const xs = xMin(zs), xp = xMin(zp);
           const mcU = modCenter(1, zs, zp, xs + xp);
-          // 模数：行星齿顶（含变位增量）不碰壳体孔，标准系列取最大
-          const mMax = (Rh - 1)/(mcU.a + zp/2 + 1 + xp);
+          // 模数：行星齿顶（含变位增量）不得超过针齿内切圆（再留 1mm 防干涉余量），标准系列取最大
+          const RpIn = cy.Dp/2 - cy.dPin/2;
+          const mMax = (RpIn - 1)/(mcU.a + zp/2 + 1 + xp);
           let m = 0;
           for (let mi = MSTD.length - 1; mi >= 0; mi--) if (MSTD[mi] <= mMax + 1e-9) { m = MSTD[mi]; break; }
           if (m <= 0) continue;
@@ -898,7 +899,7 @@ const TIPS = {
   cUc: '根切自动处理：标准 20° 齿轮 z<17 会根切，程序自动取最小正变位 x_min=(17−z)/17（齿根变壮、齿形按变位后绘制）。xΣ>0 时为角度变位，工作中心距按渐开线方程 inv(α_w)=2xΣtanα/(z_s+z_p)+inv(α) 加大；内齿圈变位量按内外两对啮合等中心距反算。',
   cF: '弯曲安全系数 S_F = σ_FP/σ_F ≥ 1.4（含工况系数 K_A、动载系数 K_V、载荷分配不均 K_p）。不足 ⇒ 程序已尝试自动加宽齿宽至 φ_d=1.0；仍不足则降扭矩、加大外径（更大模数）或换高强度材料。',
   cH: '接触安全系数 S_H = σ_HP/σ_H ≥ 1.1（简化赫兹接触估算）。不足 ⇒ 加宽齿宽、加大外径、或改善材料热处理提高 σ_HP。',
-  cD: '模数取标准系列后必须能装进给定外径（单级：齿根圆+最小轮缘；RV：行星齿顶 ≤ 壳体孔）。装不下 ⇒ 加大外径或减少齿数。',
+  cD: '模数取标准系列后必须能装进给定外径（单级：齿根圆+最小轮缘；RV：行星齿顶 ≤ 针齿内切圆，防与针齿干涉）。装不下 ⇒ 加大外径或减少齿数。',
   cMest: '弯曲强度需求的最小模数 m_est ≤ 实际模数 m。不满足 ⇒ 外径偏小或扭矩偏大（模数由外径反解，无法再调大）。',
   cWall: '单级：行星轮孔 = 标准轴承外圈（623~6204），壁厚 s ≥ 2F/(b·σ_FP) 且 L₁₀ ≥ 5000h。RV：行星轮孔 = 曲轴轴颈 = 标准轴承内径，轴承外圈即摆线轮曲轴孔。',
   cWallS: '太阳轮孔壁厚须满足强度 s ≥ F/(b·σ_FP)（太阳轮传递全部输入扭矩）。不足 ⇒ 减小输入轴直径，或加大外径/模数。',
@@ -1096,7 +1097,7 @@ function frame(now) {
         : '✓ 不根切', 'ok');
   setRO('cF', `${d.SF.toFixed(2)}（σ_F=${d.sigF.toFixed(0)}MPa，K_V=${d.KV.toFixed(2)}）${d.sFok ? '✓' : '✗'}`, d.sFok ? 'ok' : 'warn');
   setRO('cH', `${d.SH.toFixed(2)}（σ_H=${d.sigH.toFixed(0)}MPa，v=${d.v.toFixed(1)}m/s）${d.sHok ? '✓' : '✗'}`, d.sHok ? 'ok' : 'warn');
-  setRO('cD', d.rv ? `✓ m=${m}，行星齿顶 Ø${(2*(a + d.dp/2 + m)).toFixed(1)} ≤ 壳体孔 Ø${(2*d.rv.Rh).toFixed(1)}`
+  setRO('cD', d.rv ? `✓ m=${m}，行星齿顶 Ø${(2*(a + d.dp/2 + d.m + d.xp*d.m)).toFixed(1)} ≤ 针齿内切圆 Ø${(d.rv.Dp - d.rv.dPin).toFixed(1)}（防干涉）`
                    : (d.m0 > 0 ? `✓ m=${m}，外径=给定 Ø${d.Dmax}，轮缘 ${d.rim.toFixed(1)} ≥ ${Math.max(3*m, 2).toFixed(1)}mm`
                                : `✗ 给定外径 Ø${d.Dmax} 连最小模数都装不下`),
         d.rv ? 'ok' : (d.m0 > 0 ? 'ok' : 'warn'));
@@ -1239,6 +1240,11 @@ function frame(now) {
       ctx.arc(cx + d.rv.Rp*Math.cos(aa)*zoom, cy + d.rv.Rp*Math.sin(aa)*zoom, d.rv.rp*zoom, 0, 2*Math.PI);
       ctx.fill(); ctx.stroke();
     }
+    // 针齿内切圆（行星齿顶的防干涉界限）
+    ctx.strokeStyle = 'rgba(200,210,220,0.4)'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.arc(cx, cy, (d.rv.Rp - d.rv.rp)*zoom, 0, 2*Math.PI); ctx.stroke();
+    ctx.setLineDash([]);
   } else {
     // 与 0 号行星轮在内齿圈 φ=0 处正确啮合：θ_r = −(v0·zp/zr + π/zr)
     const v0 = ((0 - planets[0].thP0) % pitchP + pitchP) % pitchP;
