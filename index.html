@@ -741,10 +741,20 @@ function design() {
       const phis = [...new Set([phi, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= phi - 1e-9))];
       // 摆线级参数只随 z_c 变化：按 z_c 预计算并跨帧缓存（针径、偏心距、压力角、轮廓）
       const cycOf = zc => {
-        const key = `${zc}|${cDp}|${cK1}|${Dmax}`;
+        const key = `${zc}|${cDp}|${cK1}|${Dmax}|${T2req}|${sHP}`;
         if (cycCache.has(key)) return cycCache.get(key);
-        const Dp = cDp*Dmax;
-        const dPin = pickRoller(Math.PI*Dp/(zc + 1)*0.5);   // 针齿套外径：标准滚子（≈半节距）
+        const Dp = cDp*Dmax, pitch = Math.PI*Dp/(zc + 1);
+        // 针齿直径由弯曲强度反推：双支点梁 M=F·L/4，σ=32M/(πd³) ≤ 600MPa（GCr15 滚子）
+        // F_max 按需求扭矩估算；跨距 L ≈ 2·b_c + 2mm（双摆线轮 + 隔套）
+        const FmaxE = 4*T2req/(cK1*(zc + 1)*(Dp/2));
+        const dEst = Math.max(pickRoller(pitch*0.5), 0.5);
+        const bEst = Math.max(FmaxE*189.8*189.8/(sHP*sHP*dEst), 0.1*Dp);
+        const dReq = Math.cbrt(32*(FmaxE*(2*bEst + 2)/4)/(Math.PI*600));
+        // 标准滚子：≥ 强度需求 且 ≤ 0.6·节距（几何上限）；选不出则记 pinOK=false
+        let dPin = null;
+        for (const rd of ROLLER) if (rd >= dReq - 1e-9 && rd <= pitch*0.6 + 1e-9) { dPin = rd; break; }
+        const pinOK = dPin !== null;
+        if (!pinOK) dPin = dEst;
         let pk = null;
         for (let k1 = cK1; k1 >= 0.25 - 1e-9; k1 -= 0.05) {  // K₁ 自动下调至压力角≥30°且无奇异点
           const eTry = Math.max(0.1, Math.round(k1*(Dp/2)/zc*20)/20);
@@ -753,7 +763,7 @@ function design() {
           if (c.valid && c.paDeg >= 30) break;
         }
         const rr = pk.cyc.pts.map(([x, y]) => Math.hypot(x, y));
-        const out = { Dp, dPin, ...pk, maxR: Math.max(...rr), minR: Math.min(...rr) };
+        const out = { Dp, dPin, dPinReq: dReq, pinOK, ...pk, maxR: Math.max(...rr), minR: Math.min(...rr) };
         if (cycCache.size > 300) cycCache.clear();
         cycCache.set(key, out);
         return out;
@@ -818,8 +828,13 @@ function design() {
               break;
             }
           }
+          // 太阳轮孔壁：输入轴必须装得进太阳轮根圆（含变位增量）且壁厚满足强度
+          const wallS = ds/2 - 1.25*m + xs*m - shaft/2;
+          const sReqS = Math.max(1.0, (2*T1*KA/ds)/(bs.b*sFP));
+          const wallOK = wallS >= sReqS;
           cand.push({ zs, zp, zc, zpin, u, iTot, m, a, ds, dp, clearAdj, cy, T2mm, Fmax, crank,
-                      xs, xp, aw: mcU.aw, score: Math.abs(iTot - iStar2)/iStar2, ...bs });
+                      xs, xp, aw: mcU.aw, wallS, sReqS, wallOK,
+                      score: Math.abs(iTot - iStar2)/iStar2, ...bs });
         }
       }
       if (!cand.length) {
@@ -827,8 +842,8 @@ function design() {
               + `壳体孔装不下渐开线级，或超出单台 RV 速比范围（≈16~300）。`
               + `⇒ 加大外径、减少行星轮数 n、或调整扭矩需求。`;
       } else {
-        // 分层选优：①强度+模数 ②曲轴放得下 ③轴承寿命+弯曲 ④宁大勿小（i 偏小则 T₂ 不达标）⑤速比偏差最小
-        const tier = c => !c.strong ? 3 : !c.crank ? 2
+        // 分层选优：①强度+模数 ②曲轴放得下+针齿够粗+输入轴装得进太阳轮 ③轴承寿命+弯曲 ④宁大勿小 ⑤速比偏差最小
+        const tier = c => !c.strong ? 3 : (!c.crank || !c.cy.pinOK || !c.wallOK) ? 2
                         : (c.crank.lifeFail || c.crank.bendFail) ? 1 : 0;
         const under = c => c.iTot < iStar2 ? 1 : 0;
         cand.sort((x, y) => (tier(x) - tier(y)) || (under(x) - under(y)) || (x.score - y.score));
@@ -842,7 +857,8 @@ function design() {
                m: c0.m, a: c0.a, ds: c0.ds, dp: c0.dp, b: c0.b, clearAdj: c0.clearAdj,
                sigF: c0.sigF, sigH: c0.sigH, SF: c0.SF, SH: c0.SH, KV: c0.KV, v: c0.v,
                mE: c0.mE, phiU: c0.ph, sFok: c0.SF >= 1.4, sHok: c0.SH >= 1.1, strong: !!c0.strong,
-               Dp: cy.Dp, dPin: cy.dPin, e: cy.e, k1Used: cy.k1, paDeg: cy.cyc.paDeg,
+               Dp: cy.Dp, dPin: cy.dPin, dPinReq: cy.dPinReq, pinOK: cy.pinOK,
+               e: cy.e, k1Used: cy.k1, paDeg: cy.cyc.paDeg,
                valid: cy.cyc.valid, pts: cy.cyc.pts, Rp: cy.cyc.Rp, rp: cy.cyc.rp,
                maxR: cy.maxR, minR: cy.minR, outerDisc, outerPins, shellR, rimOK, Rh,
                Fmax: c0.Fmax, bStr: c0.Fmax*189.8*189.8/(sHP*sHP*cy.dPin), bCyc,
@@ -911,6 +927,7 @@ const TIPS = {
   rX: '变位系数：z<17 时自动取最小正变位 x=(17−z)/17 避免根切，齿形图按变位后绘制（齿根变壮、齿顶加大）。x_r 为内齿圈反算变位量（等中心距）。注意：Fusion 的 Spur Gear 插件不支持变位参数，建模时需按 x 手动修形（齿条刀具移距 x·m）。',
   rvS1: '真实 RV 的渐开线级：无内齿圈，太阳轮直接驱动行星轮，行星轮轴即摆线轮曲轴。只承受输入级小扭矩，故模数可以很小；它的作用是把运动分配给 2~3 根曲轴。',
   rvZ: '摆线轮齿数 z_c 取奇数：双摆线盘 180° 错相安装的几何必然（针齿数 z_c+1 必须为偶数，针齿环才有 180° 对称性），否则第二片轮与针齿干涉。',
+  rvPd: '针齿直径由弯曲强度反推：按双支点梁 M=F·L/4、σ=32M/(πd³) ≤ 600MPa（GCr15 滚子），取满足强度的最小标准滚子；几何上限 0.6×节距（针齿不能相碰）。标红 ⇒ 针齿太密装不下强针：程序会自动改选针数更少（z_c 更小）的方案，或加大外径/降扭矩。',
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
@@ -1130,7 +1147,8 @@ function frame(now) {
     setRO('rvZ', `${r.zc}（奇数：双盘 180° 错相必需）`);
     setRO('rvZp', `${r.zpin}（偶数：针齿环 180° 对称 ✓）`);
     setRO('rvE', `${mm2(r.e)}（K₁=${r.k1Used.toFixed(2)}${Math.abs(r.k1Used - d.cK1) > 1e-9 ? '，已自动下调' : ''}）`);
-    setRO('rvPd', mm2(r.dPin) + '（标准滚子）');
+    setRO('rvPd', `${mm2(r.dPin)}（标准滚子；弯曲强度需 Ø${r.dPinReq.toFixed(1)} ${r.pinOK ? '✓' : '✗ 受节距限制'}）`,
+          r.pinOK ? '' : 'warn');
     setRO('rvDp', mm2(r.Dp));
     setRO('rvPA', `${r.paDeg.toFixed(1)}° ${r.paDeg >= 30 ? '✓' : '⚠ 偏小，可减小偏心距或针齿直径'}`,
           r.paDeg >= 30 ? 'ok' : 'warn');
@@ -1291,6 +1309,7 @@ function frame(now) {
   ctx.fillText(d.rv ? `zs=${zs}  zp=${zp} ×${n}（轴=曲轴）  m=${m}mm  b=${d.b.toFixed(1)}mm  i=1+(${zp}/${zs})×${d.rv.zpin}=${iAct.toFixed(1)}  壳体Ø${d.Dmax.toFixed(0)}（RV 一体化，针齿壳固定）`
                     : `zs=${zs}  zp=${zp} ×${n}  zr=${zr}  m=${m}mm  b=${d.b.toFixed(1)}mm  i=${iAct.toFixed(2)}  D=${d.D.toFixed(1)}mm`, cx, 26);
   const rvOK = d.rv && d.rv.T2 >= d.T2req/1000 && d.rv.valid && d.rv.strong && d.rv.rimOK
+               && d.rv.pinOK && d.wallS >= d.sReqS
                && d.rv.crank && !d.rv.crank.lifeFail && !d.rv.crank.bendFail
                && Math.abs(d.rv.iTot-d.rv.iStar2)/d.rv.iStar2 <= 0.05;
   ctx.fillStyle = (d.okAll || rvOK) ? '#8ef0c1' : '#ff8a8a';
