@@ -176,7 +176,7 @@
     <div class="ro"><span>针齿 = 销 + 套（标准滚子）</span><b id="rvPinC"></b></div>
     <div class="hd">曲轴（行星轮轴）· 标准轴承</div>
     <div class="ro"><span>曲轴轴颈 Ø（= 行星轮孔 = 标准轴承内径）</span><b id="rvCrank"></b></div>
-    <div class="ro"><span>曲轴轴承（支承与摆线轮孔同型号）</span><b id="rvCrankB"></b></div>
+    <div class="ro"><span>曲轴轴承（滚针 HK 优先，两处同型号）</span><b id="rvCrankB"></b></div>
     <div class="ro"><span>曲轴弯曲应力（简化校核）</span><b id="rvCrankS"></b></div>
     <div class="ro"><span>摆线轮曲轴孔：孔数 / 分布圆 / 孔径</span><b id="rvDiscH"></b></div>
     <div class="ro"><span>输入轴支承（电机轴承承担）</span><b id="rvBrg"></b></div>
@@ -602,6 +602,12 @@ const BRG = [[3,10,4,'623',2.1],[4,13,5,'624',2.9],[5,16,5,'625',4.0],[6,19,6,'6
              [20,42,12,'6004',13.8],[20,47,14,'6204',19.1]];
 // 标准圆柱滚子/滚针直径系列（mm）：针齿套、输出柱销套外径由此选取
 const ROLLER = [1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,7,8,9,10,12,14];
+// 冲压外圈滚针轴承（HK 系列：d 内径 × D 外径 × B 宽 × C 估算 kN）：
+// RV 曲轴/摆线轮孔用——同样内径外径比球轴承小得多（量产 RV 曲轴的标准选择）
+const NRG = [[3,6.5,6,'HK0306',1.8],[4,8,8,'HK0408',2.6],[5,9,9,'HK0509',3.1],
+             [6,10,9,'HK0609',3.6],[7,11,9,'HK0709',4.0],[8,12,10,'HK0810',4.6],
+             [9,13,10,'HK0910',5.0],[10,14,10,'HK1010',5.4],[12,16,12,'HK1212',7.0],
+             [14,20,12,'HK1412',9.0],[16,22,12,'HK1612',10.5],[20,26,12,'HK2012',12.5]];
 // 取不超过 raw 的最大标准滚子直径（留磨合余量）；raw 过小则原样返回
 function pickRoller(raw) {
   let best = null;
@@ -807,26 +813,30 @@ function design() {
             bs = { b, ph, mE, v, KV, Ft, sigF, sigH, SF: sFP/sigF, SH: sHP/sigH };
             if (bs.SF >= 1.4 && bs.SH >= 1.1 && m >= mE) { bs.strong = true; break; }
           }
-          // 曲轴（行星轮轴）：轴颈 = 行星轮孔 = 标准轴承内径，从大到小试
+          // 曲轴（行星轮轴）：轴颈 = 行星轮孔 = 标准轴承内径，滚针 HK 优先（外径小），球轴承兜底
+          // 选型取"满足强度的最小轴颈"：弯曲/扭转在此量级不紧张，小孔保摆线轮实体强度
           let crank = null;
           if (bs.strong) {
             const Fp = bs.Ft*Kp;
             const sReq = Math.max(1.0, 2*Fp/(bs.b*sFP));
             const rootP = dp/2 - 1.25*m + xp*m;
-            for (let bi = BRG.length - 1; bi >= 0; bi--) {
-              const [bd, BD, BB, bname, bC] = BRG[bi];
-              if (rootP - bd/2 < sReq) continue;                    // 行星轮孔壁（强度）
-              if (2*a*Math.sin(Math.PI/n) < BD + 1) continue;       // 相邻曲轴轴承相碰
-              if (a + BD/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
-              const nRelC = zpin*n1/iTot;                            // 曲轴相对行星架转速
-              const L10h = Math.pow(bC*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
-              const bCyc = Math.ceil(Math.max(Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
-              const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 曲轴弯曲（简化）
-              crank = { d: bd, D: BD, B: BB, name: bname, C: bC, L10h,
-                        wall: rootP - bd/2, sReq, sigB, bCyc,
-                        lifeFail: L10h < 5000, bendFail: sigB > sFP };
-              break;
-            }
+            const trySeries = table => {
+              for (const [bd, BD, BB, bname, bC] of table) {
+                if (rootP - bd/2 < sReq) continue;                    // 行星轮孔壁（强度）
+                if (2*a*Math.sin(Math.PI/n) < BD + 1) continue;       // 相邻曲轴轴承相碰
+                if (a + BD/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
+                const nRelC = zpin*n1/iTot;                            // 曲轴相对行星架转速
+                const L10h = Math.pow(bC*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
+                const bCyc = Math.ceil(Math.max(Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
+                const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 曲轴弯曲（简化）
+                if (sigB > sFP) continue;                              // 轴颈弯曲强度不够 ⇒ 加粗
+                return { d: bd, D: BD, B: BB, name: bname, C: bC, L10h,
+                         wall: rootP - bd/2, sReq, sigB, bCyc,
+                         lifeFail: L10h < 5000, bendFail: false };
+              }
+              return null;
+            };
+            crank = trySeries(NRG) || trySeries(BRG);
           }
           // 太阳轮孔壁：输入轴必须装得进太阳轮根圆（含变位增量）且壁厚满足强度
           const wallS = ds/2 - 1.25*m + xs*m - shaft/2;
@@ -931,8 +941,8 @@ const TIPS = {
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
-  rvCrank: '曲轴轴颈 = 行星轮孔 = 标准轴承内径（623~6204 从大到小试）。需同时满足：行星轮孔壁强度、相邻曲轴轴承不相碰、摆线轮曲轴孔不穿出轮缘。',
-  rvCrankB: '曲轴轴承：行星架支承轴承与摆线轮孔轴承取同型号标准件。寿命 L₁₀ ≥ 5000h，载荷 ≈ 摆线轮最大接触力的 1/n（简化均载），工作转速 = (z_c+1)·n₂。',
+  rvCrank: '曲轴轴颈 = 行星轮孔 = 标准轴承内径。优先选滚针 HK（冲压外圈，外径比球轴承小得多——量产 RV 曲轴的标准选择），放不下再退球轴承 623~6204。需同时满足：行星轮孔壁强度、相邻曲轴轴承不相碰、摆线轮曲轴孔不穿出轮缘。',
+  rvCrankB: '曲轴轴承：行星架支承轴承与摆线轮孔轴承取同型号（滚针 HK 优先）。寿命 L₁₀ ≥ 5000h，载荷 ≈ 摆线轮最大接触力的 1/n（简化均载），工作转速 = (z_c+1)·n₂。',
   rvCrankS: '曲轴弯曲简化校核：M = (F_max/n)·(b_c+b)/2，σ = 32M/(πd³) ≤ σ_FP。曲轴变形是 RV 回差（lost motion）的主要来源，此处仅为量级估算。',
   rvDiscH: '摆线轮上的曲轴孔：孔数 = 行星轮数 n，分布圆 = 2a（与行星轮分布圆相同——一体化结构的必然结果），孔径 = 曲轴轴承外圈。',
   rvTot: 'RV 总传动比 = 1+(z_p/z_s)·(z_c+1)：差动关系，不是两级相乘（例：纳博 RV-40E-121 = 1+3×40）。与需求偏差应 ≤5%，程序在全部校核达标的 (z_s,z_p,z_c) 组合中选偏差最小者。',
