@@ -1494,13 +1494,6 @@ function buildPartsPy(d) {
     P.push('ring = cyl(' + (d.Dmax/2).toFixed(3) + ', B).cut(extrude(RING_PTS, B))');
     P.push('export(ring, "内齿圈_z' + d.zr + '_m' + d.m + '", "x1")');
   }
-  // 轴承占位环（简化外形：ØD×Ød×B；正式件请下厂商模型）
-  const brgOut = d.rv ? d.rv.crank : d.brg;
-  if (brgOut) {
-    P.push('');
-    P.push('# ---- 轴承 ' + brgOut.name + '（简化占位环，Ø' + brgOut.D + '×Ø' + brgOut.d + '×' + brgOut.B + '） ----');
-    P.push('export(cyl(' + (brgOut.D/2).toFixed(3) + ', ' + brgOut.B.toFixed(2) + ').cut(cyl(' + (brgOut.d/2).toFixed(3) + ', ' + brgOut.B.toFixed(2) + ')), "轴承_' + brgOut.name + '", "' + (d.rv ? '滚针，每根曲轴 4 件' : '行星轮孔 x' + d.n) + '；简化外形，正式件请下厂商模型")');
-  }
   P.push('');
   P.push('print("DONE ->", OUT)');
   return P.join('\n');
