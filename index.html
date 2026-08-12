@@ -1502,14 +1502,22 @@ $('btnParts').onclick = e => {
     tipEl.textContent = '当前设计放不下曲轴轴承（见校核红项），无法生成曲轴/摆线轮——请先解决红项再导出。';
   } else {
     const py = buildPartsPy(d);
-    const name = 'gen_rv_parts.py';
-    try { navigator.clipboard.writeText(py); } catch (err) {}
-    try {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([py], { type: 'text/x-python' }));
-      a.download = name; a.click();
-    } catch (err) {}
-    tipEl.textContent = `已导出 ${name}（内容同时已复制到剪贴板）。运行：freecadcmd ${name} → 当前目录 rv-parts/ 下每零件一个 .step`;
+    const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.genParts;
+    if (bridge) {
+      // 桌面 app：原生壳接管 —— 弹保存位置窗口，后台调 FreeCAD 直接出 STEP
+      window.webkit.messageHandlers.genParts.postMessage({ script: py });
+      tipEl.textContent = '请在弹窗中选择零件保存位置，随后自动生成 STEP（约 10~20 秒，完成有提示）…';
+    } else {
+      // 浏览器：只能下载脚本，再双击「生成零件.command」
+      const name = 'gen_rv_parts.py';
+      try { navigator.clipboard.writeText(py); } catch (err) {}
+      try {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([py], { type: 'text/x-python' }));
+        a.download = name; a.click();
+      } catch (err) {}
+      tipEl.textContent = `已导出 ${name}（内容同时已复制到剪贴板）。双击「生成零件.command」自动运行 → rv-parts/ 下每零件一个 .step`;
+    }
   }
   const rct = e.target.getBoundingClientRect();
   tipEl.style.left = Math.min(rct.left, window.innerWidth - 400) + 'px';
