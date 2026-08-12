@@ -756,7 +756,8 @@ function design() {
         // 弯曲按双支点梁 M=F·L/4，σ=32M/(πd³) ≤ 600MPa（GCr15）；跨距 L ≈ 2·b_c + 2mm
         const FmaxE = 4*T2req/(cK1*(zc + 1)*(Dp/2));
         const dEst = Math.max(pickRoller(pitch*0.5), 0.5);
-        const bEst = Math.max(FmaxE*189.8*189.8/(sHP*sHP*dEst), 0.1*Dp);
+        // 摆线轮厚度：双盘各承一半扭矩（F/2），结构下限 0.1·Dp
+        const bEst = Math.max(FmaxE/2*189.8*189.8/(sHP*sHP*dEst), 0.1*Dp);
         const dReq = Math.max(Math.cbrt(32*(FmaxE*(2*bEst + 2)/4)/(Math.PI*600)), cPin);
         let dPin = null;
         for (const rd of ROLLER) if (rd >= dReq - 1e-9 && rd <= pitch*0.6 + 1e-9) { dPin = rd; break; }
@@ -828,7 +829,7 @@ function design() {
                 if (a + BD/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
                 const nRelC = zpin*n1/iTot;                            // 曲轴相对行星架转速
                 const L10h = Math.pow(bC*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
-                const bCyc = Math.ceil(Math.max(Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
+                const bCyc = Math.ceil(Math.max((Fmax/2)*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
                 const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 曲轴弯曲（简化）
                 if (sigB > sFP) continue;                              // 轴颈弯曲强度不够 ⇒ 加粗
                 return { d: bd, D: BD, B: BB, name: bname, C: bC, L10h,
@@ -863,7 +864,7 @@ function design() {
         const outerDisc = cy.e + cy.maxR, outerPins = cy.Dp/2 + cy.dPin/2, shellR = Dmax/2;
         const rimOK = outerDisc <= shellR && outerPins <= shellR;
         const bCyc = c0.crank ? c0.crank.bCyc
-                     : Math.ceil(Math.max(c0.Fmax*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
+                     : Math.ceil(Math.max((c0.Fmax/2)*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
         rv = { zs: c0.zs, zp: c0.zp, zc: c0.zc, zpin: c0.zpin, u: c0.u, iTot: c0.iTot, iStar2,
                m: c0.m, a: c0.a, ds: c0.ds, dp: c0.dp, b: c0.b, clearAdj: c0.clearAdj,
                sigF: c0.sigF, sigH: c0.sigH, SF: c0.SF, SH: c0.SH, KV: c0.KV, v: c0.v,
@@ -1167,7 +1168,7 @@ function frame(now) {
     setRO('rvRim', r.rimOK ? `✓ 轮 Ø${(2*r.outerDisc).toFixed(1)} / 针 Ø${(2*r.outerPins).toFixed(1)} ≤ 壳体 Ø${d.Dmax}`
                            : `✗ 轮 Ø${(2*r.outerDisc).toFixed(1)} 或 针 Ø${(2*r.outerPins).toFixed(1)} 超出壳体 Ø${d.Dmax}`,
           r.rimOK ? 'ok' : 'warn');
-    setRO('rvTh', `${mm2(r.bCyc)}（每盘；强度需 ${(r.bStr/2).toFixed(2)}mm/盘，结构下限 0.1·Dp=${(0.1*r.Dp).toFixed(1)}mm，F_max=${r.Fmax.toFixed(0)}N）`);
+    setRO('rvTh', `${mm2(r.bCyc)}（每盘，双盘各承 T₂/2；强度需 ${(r.bStr/2).toFixed(2)}mm/盘，结构下限 0.1·Dp=${(0.1*r.Dp).toFixed(1)}mm，F_max=${r.Fmax.toFixed(0)}N）`);
     setRO('rvPinC', `销 Ø${r.pinCore.toFixed(2)} / 套 Ø${r.dPin.toFixed(2)}（套厚 ${r.tP}）`);
     setRO('rvCrank', r.crank ? `Ø${r.crank.d} mm（行星轮孔壁 ${r.crank.wall.toFixed(1)} ≥ ${r.crank.sReq.toFixed(1)} ✓）`
                              : '✗ 行星轮内放不下曲轴（加大外径/降扭矩）',
