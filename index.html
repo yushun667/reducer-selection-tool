@@ -97,6 +97,7 @@
     <div class="hd">摆线级经验系数（RV 模式，可按需调整）</div>
     <div class="row"><label>针齿节圆比 D<sub>p</sub>/D</label><input id="cDp" type="number" min="0.5" max="0.95" step="0.05" value="0.8"><span class="unit">0.7~0.9</span></div>
     <div class="row"><label>短幅系数 K₁</label><input id="cK1" type="number" min="0.25" max="0.75" step="0.05" value="0.6"><span class="unit">0.5~0.75</span></div>
+    <div class="row"><label>针齿最小直径（套外径）</label><input id="cPin" type="number" min="1" max="12" step="0.5" value="3"><span class="unit">mm</span></div>
     <div class="row"><label>滚套壁厚比 t/d</label><input id="cT" type="number" min="0.05" max="0.3" step="0.01" value="0.15"><span class="unit">≥0.5mm</span></div>
     <div class="note">K₁ 会在压力角 &lt;30° 或有奇异点时自动下调（步进 0.05 至 0.25）。</div>
   </div>
@@ -712,7 +713,7 @@ function design() {
   const phi = num('phi', 0.5, 0.1, 2), YF = num('YF', 2.8, 1, 5), Kp = +$('kp').value;
   const KA = +$('ka').value;
   const cDp = num('cDp', 0.8, 0.5, 0.95), cK1 = num('cK1', 0.6, 0.25, 0.75);
-  const cT = num('cT', 0.15, 0.05, 0.3);
+  const cT = num('cT', 0.15, 0.05, 0.3), cPin = num('cPin', 3, 1, 12);
   // 由扭矩需求反推传动比：i* = T₂/(T₁·η)，单级可用范围 3~9（超出则按边界配齿并告警）
   const ETA = 0.97;
   const iStar = T2req/(T1*ETA);
@@ -741,16 +742,15 @@ function design() {
       const phis = [...new Set([phi, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= phi - 1e-9))];
       // 摆线级参数只随 z_c 变化：按 z_c 预计算并跨帧缓存（针径、偏心距、压力角、轮廓）
       const cycOf = zc => {
-        const key = `${zc}|${cDp}|${cK1}|${Dmax}|${T2req}|${sHP}`;
+        const key = `${zc}|${cDp}|${cK1}|${Dmax}|${T2req}|${sHP}|${cPin}`;
         if (cycCache.has(key)) return cycCache.get(key);
         const Dp = cDp*Dmax, pitch = Math.PI*Dp/(zc + 1);
-        // 针齿直径由弯曲强度反推：双支点梁 M=F·L/4，σ=32M/(πd³) ≤ 600MPa（GCr15 滚子）
-        // F_max 按需求扭矩估算；跨距 L ≈ 2·b_c + 2mm（双摆线轮 + 隔套）
+        // 针齿直径 = max(弯曲强度需求, 用户最小直径)，取标准滚子；上限 0.6·节距（针齿不能相碰）
+        // 弯曲按双支点梁 M=F·L/4，σ=32M/(πd³) ≤ 600MPa（GCr15）；跨距 L ≈ 2·b_c + 2mm
         const FmaxE = 4*T2req/(cK1*(zc + 1)*(Dp/2));
         const dEst = Math.max(pickRoller(pitch*0.5), 0.5);
         const bEst = Math.max(FmaxE*189.8*189.8/(sHP*sHP*dEst), 0.1*Dp);
-        const dReq = Math.cbrt(32*(FmaxE*(2*bEst + 2)/4)/(Math.PI*600));
-        // 标准滚子：≥ 强度需求 且 ≤ 0.6·节距（几何上限）；选不出则记 pinOK=false
+        const dReq = Math.max(Math.cbrt(32*(FmaxE*(2*bEst + 2)/4)/(Math.PI*600)), cPin);
         let dPin = null;
         for (const rd of ROLLER) if (rd >= dReq - 1e-9 && rd <= pitch*0.6 + 1e-9) { dPin = rd; break; }
         const pinOK = dPin !== null;
@@ -927,7 +927,7 @@ const TIPS = {
   rX: '变位系数：z<17 时自动取最小正变位 x=(17−z)/17 避免根切，齿形图按变位后绘制（齿根变壮、齿顶加大）。x_r 为内齿圈反算变位量（等中心距）。注意：Fusion 的 Spur Gear 插件不支持变位参数，建模时需按 x 手动修形（齿条刀具移距 x·m）。',
   rvS1: '真实 RV 的渐开线级：无内齿圈，太阳轮直接驱动行星轮，行星轮轴即摆线轮曲轴。只承受输入级小扭矩，故模数可以很小；它的作用是把运动分配给 2~3 根曲轴。',
   rvZ: '摆线轮齿数 z_c 取奇数：双摆线盘 180° 错相安装的几何必然（针齿数 z_c+1 必须为偶数，针齿环才有 180° 对称性），否则第二片轮与针齿干涉。',
-  rvPd: '针齿直径由弯曲强度反推：按双支点梁 M=F·L/4、σ=32M/(πd³) ≤ 600MPa（GCr15 滚子），取满足强度的最小标准滚子；几何上限 0.6×节距（针齿不能相碰）。标红 ⇒ 针齿太密装不下强针：程序会自动改选针数更少（z_c 更小）的方案，或加大外径/降扭矩。',
+  rvPd: '针齿直径 = max（弯曲强度需求, 你设置的"针齿最小直径"），取标准滚子；弯曲按双支点梁 M=F·L/4、σ=32M/(πd³) ≤ 600MPa（GCr15）；几何上限 0.6×节距（针齿不能相碰）。标红 ⇒ 针齿太密装不下粗针：加大"最小直径"旁边的约束会自动转向针数更少（z_c 更小）的方案，或加大外径/降扭矩。',
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
@@ -1147,7 +1147,7 @@ function frame(now) {
     setRO('rvZ', `${r.zc}（奇数：双盘 180° 错相必需）`);
     setRO('rvZp', `${r.zpin}（偶数：针齿环 180° 对称 ✓）`);
     setRO('rvE', `${mm2(r.e)}（K₁=${r.k1Used.toFixed(2)}${Math.abs(r.k1Used - d.cK1) > 1e-9 ? '，已自动下调' : ''}）`);
-    setRO('rvPd', `${mm2(r.dPin)}（标准滚子；弯曲强度需 Ø${r.dPinReq.toFixed(1)} ${r.pinOK ? '✓' : '✗ 受节距限制'}）`,
+    setRO('rvPd', `${mm2(r.dPin)}（标准滚子；强度/下限需 Ø${r.dPinReq.toFixed(1)} ${r.pinOK ? '✓' : '✗ 受节距限制'}）`,
           r.pinOK ? '' : 'warn');
     setRO('rvDp', mm2(r.Dp));
     setRO('rvPA', `${r.paDeg.toFixed(1)}° ${r.paDeg >= 30 ? '✓' : '⚠ 偏小，可减小偏心距或针齿直径'}`,
