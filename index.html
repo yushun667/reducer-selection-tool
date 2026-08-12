@@ -1482,9 +1482,10 @@ function buildPartsPy(d) {
     P.push('crank = crank.removeSplitter()                # 合并共面，保证单一实体');
     P.push('export(crank, "曲轴_e' + r.e.toFixed(2) + '", "x' + d.n + '")');
     P.push('');
-    P.push('# ---- 针齿 ×' + r.zpin + '（销+套） ----');
-    P.push('export(cyl(' + (r.dPin/2).toFixed(3) + ', ' + Lpin.toFixed(2) + '), "针齿套_d' + r.dPin.toFixed(1) + '", "x' + r.zpin + '")');
-    P.push('export(cyl(' + (r.pinCore/2).toFixed(3) + ', ' + (Lpin+2).toFixed(2) + '), "针齿销_d' + r.pinCore.toFixed(1) + '", "x' + r.zpin + '")');
+    P.push('# ---- 针齿 ×' + r.zpin + '（空心套筒 + 实心销，套内孔=销径） ----');
+    P.push('sleeve = cyl(' + (r.dPin/2).toFixed(3) + ', ' + Lpin.toFixed(2) + ').cut(cyl(' + (r.pinCore/2).toFixed(3) + ', ' + Lpin.toFixed(2) + '))');
+    P.push('export(sleeve, "针齿套_d' + r.dPin.toFixed(1) + '", "x' + r.zpin + '，空心套筒（外Ø' + r.dPin.toFixed(1) + ' 内Ø' + r.pinCore.toFixed(1) + '）")');
+    P.push('export(cyl(' + (r.pinCore/2).toFixed(3) + ', ' + (Lpin+2).toFixed(2) + '), "针齿销_d' + r.pinCore.toFixed(1) + '", "x' + r.zpin + '，实心销（两端各长1mm压入壳体）")');
   } else {
     const gr = ringOutline(d.m, d.zr, d.rim);
     P.push('');
