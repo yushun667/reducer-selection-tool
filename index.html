@@ -1411,6 +1411,85 @@ $('btnDXF').onclick = e => {
   setTimeout(() => { tipEl.style.display = 'none'; }, 5000);
 };
 
+// ---------- 装配尺寸清单（随零件生成，写入 rv-parts/装配尺寸清单.html） ----------
+function buildPartsDoc(d) {
+  const f = (v, nd) => (+v).toFixed(nd === undefined ? 2 : nd);
+  const r = d.rv;
+  const H = [];
+  H.push('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>装配尺寸清单</title>'
+    + '<style>body{font-family:-apple-system,"PingFang SC",sans-serif;background:#1e2430;color:#dde3ea;max-width:900px;margin:0 auto;padding:24px 30px;font-size:13.5px;line-height:1.75}'
+    + 'h1{font-size:19px}h2{font-size:15px;color:#7cc4ff;margin:20px 0 6px;border-bottom:1px solid #3a4656;padding-bottom:3px}'
+    + 'table{border-collapse:collapse;width:100%;font-size:12.5px;margin:8px 0}td,th{border:1px solid #3a4656;padding:4px 12px}th{color:#7cc4ff;text-align:left}td:last-child{color:#8ef0c1}'
+    + 'code{color:#ffd166}.sub{color:#8b98a8;font-size:12px}</style></head><body>');
+  H.push('<h1>装配尺寸清单</h1><div class="sub">随零件 STEP 一同生成 · '
+    + (r ? 'RV 减速器（2K-V 一体化）' : '单级行星减速器（NGW）') + ' · 未注明单位一律 mm · 角度为 °</div>');
+  // 1 整机
+  H.push('<h2>1 整机参数</h2><table><tr><th>项目</th><th>数值</th></tr>'
+    + '<tr><td>传动比 i</td><td>' + f(d.dispI) + '</td></tr>'
+    + '<tr><td>输入扭矩 T₁ / 输出扭矩 T₂</td><td>' + f(d.T1/1000) + ' N·m / ' + f(d.T2) + ' N·m</td></tr>'
+    + '<tr><td>输入转速 n₁ / 输出转速 n₂</td><td>' + d.n1 + ' rpm / ' + f(d.n2, 1) + ' rpm</td></tr>'
+    + '<tr><td>整机外径（给定）</td><td>Ø' + f(d.Dmax, 1) + '</td></tr></table>');
+  // 2 渐开线级
+  H.push('<h2>2 渐开线级（齿轮）</h2><table><tr><th>项目</th><th>数值</th></tr>'
+    + '<tr><td>模数 m / 齿宽 b / 压力角</td><td>' + f(d.m) + ' / ' + f(d.b) + ' / 20°</td></tr>'
+    + '<tr><td>太阳轮 z_s / 行星轮 z_p' + (r ? '' : ' / 内齿圈 z_r') + '</td><td>' + d.zs + ' / ' + d.zp + (r ? '' : ' / ' + d.zr) + '</td></tr>'
+    + '<tr><td>变位系数 x_s / x_p' + (r ? '' : ' / x_r') + '</td><td>' + f(d.xs) + ' / ' + f(d.xp) + (r ? '' : ' / ' + f(d.xr)) + '</td></tr>'
+    + '<tr><td>工作中心距 a（含变位，装配用）</td><td>' + f(d.a, 3) + '</td></tr>'
+    + '<tr><td>行星轮/曲轴分布圆</td><td>Ø' + f(2*d.a) + '，' + f(360/d.n, 0) + '° 均布 ×' + d.n + '</td></tr>'
+    + '<tr><td>太阳轮孔（输入轴）/ 行星轮孔</td><td>Ø' + f(d.shaft, 1) + ' / Ø' + f(2*d.holeR) + '</td></tr></table>');
+  if (r) {
+    const BB = r.crank ? r.crank.B : 6;
+    const BD = r.crank ? r.crank.D : 0, Bd = r.crank ? r.crank.d : 0;
+    const z1 = d.b, z2 = z1 + BB, z3 = z2 + r.bCyc, z4 = z3 + r.bCyc, z5 = z4 + BB, z6 = z5 + 2;
+    const Lpin = 2*r.bCyc + 4;
+    // 3 摆线级
+    H.push('<h2>3 摆线级</h2><table><tr><th>项目</th><th>数值</th></tr>'
+      + '<tr><td>摆线轮齿数 z_c / 针齿数</td><td>' + r.zc + ' / ' + r.zpin + '</td></tr>'
+      + '<tr><td>偏心距 e / 短幅系数 K₁</td><td>' + f(r.e) + ' / ' + f(r.k1Used) + '</td></tr>'
+      + '<tr><td>摆线轮厚度 b_c（每盘，共 2 盘）</td><td>' + f(r.bCyc) + '</td></tr>'
+      + '<tr><td>摆线轮曲轴孔</td><td>' + d.n + ' × Ø' + f(BD) + '，分布圆 Ø' + f(2*r.a) + '</td></tr>'
+      + '<tr><td>摆线轮最大外缘（含偏心）</td><td>Ø' + f(2*r.outerDisc, 1) + '</td></tr>'
+      + '<tr><td>针齿：套 Ø / 销 Ø / 长度</td><td>Ø' + f(r.dPin) + ' / Ø' + f(r.pinCore) + ' / ' + f(Lpin, 0) + '</td></tr>'
+      + '<tr><td>针齿分布圆</td><td>Ø' + f(r.Dp, 1) + '，' + f(360/r.zpin, 1) + '° 均布 ×' + r.zpin + '</td></tr></table>');
+    // 4 轴向尺寸链
+    H.push('<h2>4 轴向尺寸链（曲轴 z 坐标 = 全部零件的轴向定位基准）</h2>'
+      + '<table><tr><th>轴段 / 零件</th><th>z 区间（自输入端起）</th></tr>'
+      + '<tr><td>行星轮（压装段）</td><td>0 ~ ' + f(z1, 1) + '</td></tr>'
+      + '<tr><td>行星架盘1（轴承段）</td><td>' + f(z1, 1) + ' ~ ' + f(z2, 1) + '</td></tr>'
+      + '<tr><td>摆线轮 A（偏心段 0°）</td><td>' + f(z2, 1) + ' ~ ' + f(z3, 1) + '</td></tr>'
+      + '<tr><td>摆线轮 B（偏心段 180°）</td><td>' + f(z3, 1) + ' ~ ' + f(z4, 1) + '</td></tr>'
+      + '<tr><td>行星架盘2（轴承段）</td><td>' + f(z4, 1) + ' ~ ' + f(z5, 1) + '</td></tr>'
+      + '<tr><td>轴端</td><td>' + f(z5, 1) + ' ~ ' + f(z6, 1) + '</td></tr></table>'
+      + '<p class="sub">壳体/针齿轴向覆盖两片摆线轮：建议壳体长 ≥ ' + f(2*r.bCyc + 6, 0) + '（含两端壁）。</p>');
+    // 5 自制件
+    H.push('<h2>5 自制件图纸尺寸（壳体、行星架）</h2><table><tr><th>零件</th><th>尺寸</th></tr>'
+      + '<tr><td>针齿壳（固定）</td><td>外径 Ø' + f(d.Dmax, 1) + '，内孔 Ø' + f(2*r.Rh, 1) + '；针齿孔 ' + r.zpin + ' × Ø' + f(r.pinCore) + ' 压配，分布圆 Ø' + f(r.Dp, 1) + '</td></tr>'
+      + '<tr><td>行星架盘 ×2</td><td>外径 ≥ Ø' + f(2*(r.a + BD/2 + 2), 0) + '，厚度 ≥ ' + f(BB) + '；轴承孔 ' + d.n + ' × Ø' + f(BD) + '（过渡配合），分布圆 Ø' + f(2*r.a) + '；盘1 中心孔 Ø' + f(d.shaft + 1, 1) + '（输入轴穿过）</td></tr>'
+      + '<tr><td>连接柱 ×' + d.n + '（连接两盘）</td><td>建议 Ø6；与曲轴孔错开 ' + f(360/d.n/2, 0) + '°。<b>注意：连接柱若穿过摆线轮区域，摆线轮上需加钻让位孔（孔径 = 柱径 + 2e + 0.5），生成的摆线轮未含此孔</b></td></tr>'
+      + '<tr><td>输出法兰（与行星架盘2 一体）</td><td>外径与安装孔自定</td></tr></table>');
+    // 6 标准件
+    H.push('<h2>6 标准件清单</h2><table><tr><th>名称</th><th>规格</th><th>数量</th></tr>'
+      + '<tr><td>曲轴轴承（' + (r.crank && r.crank.name.startsWith('HK') ? '滚针' : '深沟球') + '）</td><td>' + (r.crank ? r.crank.name + '（' + Bd + '×' + BD + '×' + BB + '）' : '—') + '</td><td>每根曲轴 4 件 × ' + d.n + '</td></tr>'
+      + '<tr><td>针齿滚子（销+套）</td><td>销 Ø' + f(r.pinCore) + ' / 套 Ø' + f(r.dPin) + '</td><td>' + r.zpin + '</td></tr></table>');
+  } else {
+    // 单级：自制件 = 行星架 + 端盖
+    const bb = d.brg;
+    H.push('<h2>3 自制件图纸尺寸（行星架、壳体端盖）</h2><table><tr><th>零件</th><th>尺寸</th></tr>'
+      + '<tr><td>行星架（输出）</td><td>行星轮销轴 ' + d.n + ' × Ø' + f(bb ? bb.d : 2*d.holeR, 0) + '，分布圆 Ø' + f(2*d.a) + '；输出法兰自定</td></tr>'
+      + '<tr><td>壳体/端盖</td><td>内齿圈已生成（外缘 Ø' + f(d.Dmax, 1) + '）；端盖内孔 ≥ 行星轮轴承外圈 Ø' + f(bb ? bb.D : 2*d.holeR, 0) + ' 止口定位</td></tr></table>'
+      + '<h2>4 标准件清单</h2><table><tr><th>名称</th><th>规格</th><th>数量</th></tr>'
+      + '<tr><td>行星轮轴承</td><td>' + (bb ? bb[3] + '（' + bb[0] + '×' + bb[1] + '×' + bb[2] + '）' : '—') + '</td><td>' + d.n + '</td></tr></table>');
+  }
+  // 装配要点
+  H.push('<h2>' + (r ? '7' : '5') + ' 装配要点</h2><ol>'
+    + '<li>配合：行星轮与曲轴（销轴）过盈 0.005~0.015 压装；轴承内圈随轴转取紧配（k5/m6），外圈与孔取过渡配合（H7/J7）；针齿销压入壳体。</li>'
+    + (r ? '<li>摆线轮 B 绕主轴相对 A 旋转 180° 安装（错相）；两片完全相同。</li>'
+        + '<li>各曲轴的行星轮齿相位须一致（压装前做配对标记），否则摆线轮孔对不上。</li>' : '')
+    + '<li>润滑：关节用低粘度润滑脂，填充约 30% 空间。</li></ol>');
+  H.push('</body></html>');
+  return H.join('');
+}
+
 // ---------- 一键生成零件 STEP：导出参数固化的 FreeCAD 脚本，freecadcmd 运行 ----------
 function buildPartsPy(d) {
   const pts = p => '[' + p.map(([x, y]) => '(' + x.toFixed(4) + ',' + y.toFixed(4) + ')').join(',') + ']';
@@ -1494,6 +1573,11 @@ function buildPartsPy(d) {
     P.push('ring = cyl(' + (d.Dmax/2).toFixed(3) + ', B).cut(extrude(RING_PTS, B))');
     P.push('export(ring, "内齿圈_z' + d.zr + '_m' + d.m + '", "x1")');
   }
+  P.push('');
+  P.push('# ---- 装配尺寸清单（HTML 文档） ----');
+  P.push('DOC = r"""' + buildPartsDoc(d) + '"""');
+  P.push('open(os.path.join(OUT, "装配尺寸清单.html"), "w", encoding="utf-8").write(DOC)');
+  P.push('print("DOC 装配尺寸清单.html")');
   P.push('');
   P.push('print("DONE ->", OUT)');
   return P.join('\n');
