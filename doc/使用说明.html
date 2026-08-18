@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>减速器选型计算工具 · 使用说明</title>
+<style>
+  body { font-family:-apple-system,"PingFang SC",sans-serif; background:#1e2430; color:#dde3ea;
+         max-width:960px; margin:0 auto; padding:28px 32px 60px; font-size:14px; line-height:1.8; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  h2 { font-size:15.5px; color:#7cc4ff; margin:26px 0 8px; border-bottom:1px solid #3a4656; padding-bottom:4px; }
+  h3 { font-size:13.5px; color:#9fb0c0; margin:16px 0 4px; }
+  .sub { color:#8b98a8; font-size:12.5px; }
+  table { border-collapse:collapse; margin:8px 0; font-size:12.5px; width:100%; }
+  td, th { border:1px solid #3a4656; padding:5px 12px; vertical-align:top; }
+  th { color:#7cc4ff; text-align:left; }
+  code { background:#141a23; border-radius:4px; padding:1px 6px; color:#ffd166; font-size:12.5px; }
+  .ok { color:#8ef0c1; } .warn { color:#ff8a8a; }
+  .fig { background:#141a23; border-radius:10px; padding:14px; margin:10px 0; }
+  .figcap { color:#8b98a8; font-size:12px; text-align:center; margin-top:6px; }
+  abbr[title] { text-decoration:underline dotted; cursor:help; }
+  ol, ul { margin:6px 0; padding-left:22px; }
+  li { margin:3px 0; }
+</style>
+</head>
+<body>
+<h1>减速器选型计算工具 · 使用说明</h1>
+<div class="sub">版本 v1.0.0 ・ 对应仓库 yushun667/reducer-selection-tool ・ 本文档随工具更新</div>
+
+<h2>1 工具简介</h2>
+<p>本工具用于机器人关节减速器的概念设计与参数选型。输入需求（扭矩、转速、外径），工具实时输出全套几何参数、校核结论和 CAD 建模参数，并可一键导出图纸与零件模型。</p>
+<p>工具自动在两种构型之间选择：</p>
+<ul>
+  <li><b>单级行星减速器（NGW 型）</b>：内齿圈固定，太阳轮输入，行星架输出。需求传动比在 3~9 且校核全过时使用。</li>
+  <li><b>RV 减速器（2K-V 一体化结构）</b>：单级不满足时自动切换。无内齿圈、无输出柱销盘；行星轮轴即曲轴，双摆线轮 180° 错相与固定针齿壳啮合，行星架即输出端。速比 i = 1+(z_p/z_s)·(z_c+1)，适用范围约 16~300。</li>
+</ul>
+
+<h2>2 启动方式</h2>
+<table>
+  <tr><th>方式</th><th>操作</th></tr>
+  <tr><td>桌面应用（推荐）</td><td>双击 <code>减速器选型工具.app</code>。完整功能（含一键生成零件）。</td></tr>
+  <tr><td>双击启动器</td><td>双击 <code>启动工具.command</code>，用默认浏览器打开。</td></tr>
+  <tr><td>浏览器直接打开</td><td>双击 <code>index.html</code>。功能完整，但"一键生成零件"退化为下载脚本（网页无权调用本机 FreeCAD）。</td></tr>
+</table>
+
+<h2>3 输入参数</h2>
+<h3>3.1 需求参数</h3>
+<table>
+  <tr><th>参数</th><th>含义与说明</th></tr>
+  <tr><td>输入扭矩 T₁</td><td>电机端扭矩（N·m）。与 T₂ 共同反推需求传动比 i* = T₂/(T₁·η)。</td></tr>
+  <tr><td>要求输出扭矩 T₂</td><td>关节端需要的扭矩（N·m）。工具按 T₂ ≥ 需求 判定合格。</td></tr>
+  <tr><td>输入转速 n₁</td><td>电机转速（rpm）。用于动载系数、输出转速和轴承寿命计算。</td></tr>
+  <tr><td>给定外径</td><td>整机最大外径（mm），硬约束。单级模式为内齿圈外径，RV 模式为针齿壳外径。模数由它反解取标准系列。</td></tr>
+  <tr><td>输入轴直径</td><td>太阳轮中心孔（mm）。输入轴支承由电机轴承承担，太阳轮常浮动安装。</td></tr>
+</table>
+<h3>3.2 经验选择</h3>
+<table>
+  <tr><th>参数</th><th>含义与说明</th></tr>
+  <tr><td>行星轮个数 n</td><td>默认 3。n 多分担扭矩好，但邻接条件变紧、需浮动均载。</td></tr>
+  <tr><td>太阳轮齿数 z_s</td><td>默认自动配齿（程序搜索达标组合）。切手动后可锁定；z&lt;17 自动正变位防根切。</td></tr>
+  <tr><td>材料 / 热处理</td><td>预设许用应力：20CrMnTi 渗碳（450/1200 MPa）、40Cr 调质（300/700）、45 钢调质（250/600）。</td></tr>
+  <tr><td>齿宽系数 φ_d</td><td>b = φ_d·m·z_s，常用 0.4~0.7。强度不足时程序自动加宽至 1.0。</td></tr>
+  <tr><td>齿形系数 Y_F</td><td>弯曲强度估算用，≈2.5~2.9，查手册图。</td></tr>
+  <tr><td>均载措施 K_p</td><td>浮动均载 1.15 / 无浮动 1.6。</td></tr>
+  <tr><td>工况系数 K_A</td><td>平稳 1.0 / 中等冲击 1.25 / 大冲击 1.5。</td></tr>
+  <tr><td>针齿节圆比 D_p/D</td><td>RV 模式。针齿节圆直径 = 比值 × 给定外径，默认 0.8。</td></tr>
+  <tr><td>短幅系数 K₁</td><td>RV 模式。决定偏心距 e = K₁·R_p/z_c。压力角不足或曲线奇异时程序自动下调。</td></tr>
+  <tr><td>针齿最小直径</td><td>RV 模式。针齿套外径下限（默认 3 mm）。实际取 max（弯曲强度需求, 该下限）对应的标准滚子。</td></tr>
+  <tr><td>滚套壁厚比 t/d</td><td>RV 模式。针齿套与销的壁厚比例，下限 0.5 mm。</td></tr>
+</table>
+
+<h2>4 输出阅读</h2>
+<p>输出分四块：配齿与模数、全部几何尺寸、校核结论、CAD 建模参数表。校核结论红绿分明：<span class="ok">绿 = 通过</span>，<span class="warn">红 = 未通过</span>（悬停每行可见含义与对策）。任一红项时工具底部状态为红，RV 模式同理。</p>
+<table>
+  <tr><th>校核项</th><th>含义</th></tr>
+  <tr><td>装配条件</td><td>单级：(z_s+z_r)/n 须为整数，否则行星轮装不进。RV 无内齿圈，不适用。</td></tr>
+  <tr><td>邻接间隙</td><td>相邻行星轮齿顶圆不相碰，间隙 ≥ 0.5 mm。</td></tr>
+  <tr><td>根切检查</td><td>z&lt;17 时程序自动取最小正变位并按变位后齿形绘制，本行恒绿。</td></tr>
+  <tr><td>弯曲 / 接触安全系数</td><td>S_F ≥ 1.4、S_H ≥ 1.1（含 K_A、K_V、K_p）。</td></tr>
+  <tr><td>模数装外径</td><td>单级：齿根圆+轮缘 ≤ 给定外径；RV：行星齿顶 ≤ 针齿内切圆（防干涉）。</td></tr>
+  <tr><td>强度是否足够</td><td>实际模数 m ≥ 强度需求最小模数 m_est。</td></tr>
+  <tr><td>行星轮轴承 / 曲轴轴颈</td><td>单级：行星轮孔 = 标准轴承外圈；RV：曲轴轴颈 = 滚针/球轴承内径，外圈即摆线轮曲轴孔。均校核壁厚强度与 L₁₀ 寿命 ≥ 5000 h。</td></tr>
+  <tr><td>太阳轮孔壁厚</td><td>输入轴穿过太阳轮根圆后的剩余壁厚须满足强度。</td></tr>
+</table>
+<p>RV 模式下增加 RV 面板：两级齿数与齿比 u、摆线轮参数（z_c、针齿数、偏心距 e、针齿、节圆、压力角、曲线有效性、外缘校核、厚度）、曲轴与轴承、摆线轮曲轴孔（孔数/分布圆/孔径）、整机速比与输出。</p>
+
+<h2>5 视图与动画</h2>
+<p>左侧动画区按真实比例绘制并标注关键尺寸：</p>
+<ul>
+  <li>上图：行星轮系（单级含内齿圈；RV 模式画针齿壳与针齿内切圆界限）。标注输入参数、孔径、齿顶圆。</li>
+  <li>下图（RV 模式）：摆线级俯视。摆线轮随行星架转动，曲轴轴心到盘心的黄线即偏心距 e。</li>
+</ul>
+<p>按钮：自动缩放、输入参数标注、暂停、邻接检查、节圆、导出齿形 DXF、一键生成零件 STEP。</p>
+
+<h2>6 导出与建模</h2>
+<h3>6.1 导出齿形 DXF（进 Fusion 360）</h3>
+<ol>
+  <li>点"导出齿形 DXF"，得到分层文件（太阳轮 / 行星轮 / 内齿圈，或 RV 模式的太阳轮 / 行星轮 / 摆线轮 / 针齿孔位壳体），1:1 毫米。</li>
+  <li>Fusion 360：设计 → 插入 → 插入 DXF → 选平面 → 单位选 mm → 勾选图层。</li>
+  <li>选中轮廓区域拉伸：齿轮按齿宽 b，摆线轮按 b_c（每盘厚度，共 2 盘，第二片转 180° 装配）。</li>
+  <li>装配行星轮中心距用工具输出的工作中心距 a（变位后可能大于标准值）。</li>
+</ol>
+<h3>6.2 一键生成零件 STEP（桌面应用）</h3>
+<ol>
+  <li>点"一键生成零件 STEP"。</li>
+  <li>在弹出的系统窗口中选择零件保存位置，点"保存到这里"。</li>
+  <li>等待约 10~20 秒（窗口标题显示"正在生成零件…"），完成后弹出零件清单。</li>
+  <li>零件在所选文件夹的 <code>rv-parts/</code> 下，每个零件一个独立 STEP：太阳轮、行星轮、曲轴（双偏心段一体）、摆线轮（共 2 盘）、针齿套（空心）、针齿销。单级模式为太阳轮、行星轮、内齿圈。</li>
+</ol>
+<p>浏览器方式打开时，该按钮退化为下载 <code>gen_rv_parts.py</code> 脚本；双击 <code>生成零件.command</code> 自动调用 FreeCAD 完成生成，效果相同。</p>
+<h3>6.3 摆线轮精确建模</h3>
+<p>摆线轮也可用 Fusion 360 的 CycloidalDrive 脚本建模，参数照 CAD 表的"摆线轮"页逐项填（减速比 = z_c、偏心距、针齿直径、针齿节圆）。RV 结构学习与三维装配模型见 <a href="../RV结构剖视示意图.html" style="color:#7cc4ff">RV结构剖视示意图.html</a> 与 resource/rv-structure/ 目录。</p>
+
+<h2>7 常见问题</h2>
+<table>
+  <tr><th>现象</th><th>原因与对策</th></tr>
+  <tr><td>太阳轮孔壁厚红</td><td>输入轴太粗、太阳轮太小。减小输入轴直径，或加大外径/模数。</td></tr>
+  <tr><td>行星轮轴承/曲轴红</td><td>行星轮根圆内放不下合格轴承。加大外径、降扭矩，或减小传动比分配。</td></tr>
+  <tr><td>针齿标红"受节距限制"</td><td>针齿太密装不下粗针。减小"针齿最小直径"下限，或加大外径。</td></tr>
+  <tr><td>提示"RV 不适用"</td><td>需求传动比 &lt; 16。按提示调整（加大外径、提高材料等级、降扭矩）。</td></tr>
+  <tr><td>速比偏差 &gt; 5%</td><td>齿数取整所致。程序已在达标组合中选偏差最小者；可微调 T₂ 需求或接受转速误差。</td></tr>
+  <tr><td>针齿与行星轮在图上重叠</td><td>不会重叠：RV 模式下行星齿顶被限制在针齿内切圆以内（灰虚线圈）。</td></tr>
+</table>
+
+<h2>8 模型假设与限制</h2>
+<p>本工具用于概念设计与方案比较。强度为简化估算，不含 GB/T 3480 的完整系数体系，无回差与刚度分析，效率取定值（η₁=0.97、η₂=0.9），轴承额定载荷为目录量级。变位按最小不根切自动取值。定型投产前必须按 GB/T 3480 完整校核，并进行结构与寿命复核。</p>
+
+<script src="../../course/assets/abbr.js"></script>
+</body>
+</html>
