@@ -815,24 +815,29 @@ function design() {
             bs = { b, ph, mE, v, KV, Ft, sigF, sigH, SF: sFP/sigF, SH: sHP/sigH };
             if (bs.SF >= 1.4 && bs.SH >= 1.1 && m >= mE) { bs.strong = true; break; }
           }
-          // 曲轴（行星轮轴）：轴颈 = 行星轮孔 = 标准轴承内径，滚针 HK 优先（外径小），球轴承兜底
-          // 选型取"满足强度的最小轴颈"：弯曲/扭转在此量级不紧张，小孔保摆线轮实体强度
+          // 曲轴（行星轮轴）：台阶曲拐轴——支承轴颈 d1（=行星轮孔=支承轴承内径），
+          // 偏心段 d2 大一档以上（形成轴肩，轴承轴向定位），摆线轮孔 = 偏心段轴承外圈
           let crank = null;
           if (bs.strong) {
             const Fp = bs.Ft*Kp;
             const sReq = Math.max(1.0, 2*Fp/(bs.b*sFP));
             const rootP = dp/2 - 1.25*m + xp*m;
             const trySeries = table => {
-              for (const [bd, BD, BB, bname, bC] of table) {
+              for (const [bd, BD, BB, bname, bC] of table) {   // 支承轴颈：满足强度的最小
                 if (rootP - bd/2 < sReq) continue;                    // 行星轮孔壁（强度）
-                if (2*a*Math.sin(Math.PI/n) < BD + 1) continue;       // 相邻曲轴轴承相碰
-                if (a + BD/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
+                const cam = table.find(([d2]) => d2 >= bd + 1.5);     // 偏心段：轴肩 ≥0.75mm
+                if (!cam) continue;
+                const [d2, D2, B2, name2, C2] = cam;
+                if (D2 < d2 + 2*cy.e + 0.3) continue;                 // 装配：裸孔须大于偏心段外廓
+                if (2*a*Math.sin(Math.PI/n) < Math.max(BD, D2) + 1) continue;  // 相邻曲轴（含偏心段）相碰
+                if (a + D2/2 > cy.minR - 2) continue;                 // 摆线轮曲轴孔穿出轮缘
                 const nRelC = zpin*n1/iTot;                            // 曲轴相对行星架转速
-                const L10h = Math.pow(bC*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
+                const L10h = Math.pow(C2*1000/Math.max(Fmax/n, 1), 10/3)*1e6/(60*Math.max(nRelC, 1));
                 const bCyc = Math.ceil(Math.max((Fmax/2)*189.8*189.8/(sHP*sHP*cy.dPin), 0.1*cy.Dp)*2)/2;
-                const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 曲轴弯曲（简化）
-                if (sigB > sFP) continue;                              // 轴颈弯曲强度不够 ⇒ 加粗
-                return { d: bd, D: BD, B: BB, name: bname, C: bC, L10h,
+                const sigB = 32*(Fmax/n)*(bCyc + bs.b)/2/(Math.PI*Math.pow(bd, 3));  // 弯曲（最细轴颈）
+                if (sigB > sFP) continue;
+                return { d: bd, D: BD, B: BB, name: bname, C: bC,
+                         d2, D2, B2, name2, C2, L10h,
                          wall: rootP - bd/2, sReq, sigB, bCyc,
                          lifeFail: L10h < 5000, bendFail: false };
               }
@@ -943,8 +948,8 @@ const TIPS = {
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
   rvRim: '摆线轮最大外缘（含偏心）与针齿外缘都不得超过给定壳体半径。超出 ⇒ 减小针齿节圆比或加大外径。',
-  rvCrank: '曲轴轴颈 = 行星轮孔 = 标准轴承内径。优先选滚针 HK（冲压外圈，外径比球轴承小得多——量产 RV 曲轴的标准选择），放不下再退球轴承 623~6204。需同时满足：行星轮孔壁强度、相邻曲轴轴承不相碰、摆线轮曲轴孔不穿出轮缘。',
-  rvCrankB: '曲轴轴承：行星架支承轴承与摆线轮孔轴承取同型号（滚针 HK 优先）。寿命 L₁₀ ≥ 5000h，载荷 ≈ 摆线轮最大接触力的 1/n（简化均载），工作转速 = (z_c+1)·n₂。',
+  rvCrank: '台阶曲拐轴：支承轴颈（= 行星轮孔 = 支承轴承内径）细一档，偏心段粗一档以上形成轴肩——轴承轴向定位靠轴肩，这是曲拐轴的常规做法。需同时满足：行星轮孔壁强度、相邻曲轴不相碰（含偏心段）、摆线轮孔不穿出轮缘、裸孔大于偏心段外廓（装配性）。',
+  rvCrankB: '曲轴轴承两种：支承轴承（行星架盘内，细轴颈）与摆线轮孔轴承（滚针，偏心段上），寿命 L₁₀ ≥ 5000h，载荷 ≈ 摆线轮最大接触力的 1/n（简化均载），工作转速 = (z_c+1)·n₂。',
   rvCrankS: '曲轴弯曲简化校核：M = (F_max/n)·(b_c+b)/2，σ = 32M/(πd³) ≤ σ_FP。曲轴变形是 RV 回差（lost motion）的主要来源，此处仅为量级估算。',
   rvDiscH: '摆线轮上的曲轴孔：孔数 = 行星轮数 n，分布圆 = 2a（与行星轮分布圆相同——一体化结构的必然结果），孔径 = 曲轴轴承外圈。',
   rvTot: 'RV 总传动比 = 1+(z_p/z_s)·(z_c+1)：差动关系，不是两级相乘（例：纳博 RV-40E-121 = 1+3×40）。与需求偏差应 ≤5%，程序在全部校核达标的 (z_s,z_p,z_c) 组合中选偏差最小者。',
@@ -1022,7 +1027,7 @@ function drawCyclo(d) {
   for (let j = 0; j < d.n; j++) {
     const a = j*2*Math.PI/d.n;
     ctx2.beginPath();
-    ctx2.arc(r.a*Math.cos(a), r.a*Math.sin(a), (r.crank ? r.crank.D/2 : 2), 0, 2*Math.PI);
+    ctx2.arc(r.a*Math.cos(a), r.a*Math.sin(a), (r.crank ? r.crank.D2/2 : 2), 0, 2*Math.PI);
     ctx2.fill();
   }
   ctx2.restore();
@@ -1060,7 +1065,7 @@ function drawCyclo(d) {
     ctx2.strokeStyle = '#ffd166'; ctx2.lineWidth = 1.2;
     ctx2.beginPath(); ctx2.moveTo(hx, hy);
     ctx2.lineTo(hx + 18, hy - 14); ctx2.lineTo(hx + 58, hy - 14); ctx2.stroke();
-    tag2(hx + 60, hy - 16, `曲轴孔 Ø${r.crank.D}（${r.crank.name} 外圈）· 分布圆 Ø${(2*r.a).toFixed(1)}`);
+    tag2(hx + 60, hy - 16, `曲轴孔 Ø${r.crank.D2}（${r.crank.name2} 外圈）· 分布圆 Ø${(2*r.a).toFixed(1)}`);
     const jx = cx + r.a*Math.cos(hAng)*zoom, jy = cy + r.a*Math.sin(hAng)*zoom;
     ctx2.beginPath(); ctx2.moveTo(jx, jy);
     ctx2.lineTo(jx - 18, jy + 14); ctx2.lineTo(jx - 58, jy + 14); ctx2.stroke();
@@ -1186,11 +1191,11 @@ function frame(now) {
     setRO('rvCrank', r.crank ? `Ø${r.crank.d} mm（行星轮孔壁 ${r.crank.wall.toFixed(1)} ≥ ${r.crank.sReq.toFixed(1)} ✓）`
                              : '✗ 行星轮内放不下曲轴（加大外径/降扭矩）',
           r.crank ? 'ok' : 'warn');
-    setRO('rvCrankB', r.crank ? `${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）L₁₀=${r.crank.L10h.toFixed(0)}h ${r.crank.lifeFail ? '✗ <5000h' : '✓'}`
+    setRO('rvCrankB', r.crank ? `支承 ${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）×2/根 ＋ 摆线轮孔 ${r.crank.name2}（${r.crank.d2}×${r.crank.D2}×${r.crank.B2}）×2/根；L₁₀=${r.crank.L10h.toFixed(0)}h ${r.crank.lifeFail ? '✗ <5000h' : '✓'}`
                               : '—', r.crank && !r.crank.lifeFail ? 'ok' : 'warn');
     setRO('rvCrankS', r.crank ? `${r.crank.sigB.toFixed(0)} MPa ≤ σ_FP=${d.sFP} ${r.crank.bendFail ? '✗' : '✓'}`
                               : '—', r.crank && !r.crank.bendFail ? 'ok' : 'warn');
-    setRO('rvDiscH', `${n} 孔 ・ 分布圆 Ø${(2*r.a).toFixed(2)} ・ 孔径 Ø${r.crank ? r.crank.D : '?'}（轴承外圈）`
+    setRO('rvDiscH', `${n} 孔 ・ 分布圆 Ø${(2*r.a).toFixed(2)} ・ 孔径 Ø${r.crank ? r.crank.D2 : '?'}（偏心段轴承外圈）`
         + (n % 2 === 1 ? ` ⚠ 孔数为奇数：A/B 两片孔位错开 ${(180/r.zc).toFixed(1)}°，非同一零件` : ''));
     setRO('rvBrg', d.brgIn ? `电机轴支承；若自加支承：Ø${d.shaft} 可配 ${d.brgIn[3]}`
                            : `电机轴支承；若自加支承：建议轴径 Ø${d.brgSug[0]}`);
@@ -1235,11 +1240,11 @@ function frame(now) {
     $('cyTh').textContent = mm2(r.bCyc) + '（每盘厚度，共 2 盘）';
     $('cyCh').textContent = '—（RV 摆线轮无中心孔，按需）';
     $('cyOn').textContent = n + '（曲轴孔）';
-    $('cyHd').textContent = r.crank ? mm2(r.crank.D) + '（曲轴轴承外圈）' : '—';
+    $('cyHd').textContent = r.crank ? mm2(r.crank.D2) + '（摆线轮孔轴承外圈）' : '—';
     $('cyOp').textContent = mm2(2*r.a) + '（= 2a，同行星轮分布圆）';
     $('cyPin').textContent = r.crank ? mm2(r.crank.d) + '（曲轴轴颈）' : '—';
     $('cyPinC').textContent = `销 Ø${r.pinCore.toFixed(2)} / 套 Ø${r.dPin.toFixed(2)}（标准滚子）`;
-    $('cyOutC').textContent = r.crank ? `${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）` : '—';
+    $('cyOutC').textContent = r.crank ? `支承 ${r.crank.name}（${r.crank.d}×${r.crank.D}×${r.crank.B}）＋ 摆线轮孔 ${r.crank.name2}（${r.crank.d2}×${r.crank.D2}×${r.crank.B2}）` : '—';
     $('cyRim').textContent = `Ø${(2*r.outerDisc).toFixed(1)} ≤ Ø${d.Dmax} ${r.rimOK ? '✓' : '✗'}`;
     $('cyBrg').textContent = d.brgIn ? `电机轴承承担；若加支承可配 ${d.brgIn[3]}（${d.brgIn[0]}×${d.brgIn[1]}×${d.brgIn[2]}）`
                                      : `电机轴承承担；若加支承建议轴径 Ø${d.brgSug[0]}`;
@@ -1456,6 +1461,7 @@ function buildPartsDoc(d) {
   if (r) {
     const BB = r.crank ? r.crank.B : 6;
     const BD = r.crank ? r.crank.D : 0, Bd = r.crank ? r.crank.d : 0;
+    const BD2 = r.crank ? r.crank.D2 : 0, Bd2 = r.crank ? r.crank.d2 : 0, BB2 = r.crank ? r.crank.B2 : 0;
     const z1 = d.b, z2 = z1 + BB, z3 = z2 + r.bCyc, z4 = z3 + r.bCyc, z5 = z4 + BB, z6 = z5 + 2;
     const Lpin = 2*r.bCyc + 4;
     // 3 摆线级
@@ -1463,7 +1469,7 @@ function buildPartsDoc(d) {
       + '<tr><td>摆线轮齿数 z_c / 针齿数</td><td>' + r.zc + ' / ' + r.zpin + '</td></tr>'
       + '<tr><td>偏心距 e / 短幅系数 K₁</td><td>' + f(r.e) + ' / ' + f(r.k1Used) + '</td></tr>'
       + '<tr><td>摆线轮厚度 b_c（每盘，共 2 盘）</td><td>' + f(r.bCyc) + '</td></tr>'
-      + '<tr><td>摆线轮曲轴孔</td><td>' + d.n + ' × Ø' + f(BD) + '，分布圆 Ø' + f(2*r.a)
+      + '<tr><td>摆线轮曲轴孔</td><td>' + d.n + ' × Ø' + f(BD2) + '，分布圆 Ø' + f(2*r.a)
       + (d.n % 2 === 1 ? '；<b>A/B 两片孔位错开 ' + f(180/r.zc, 1) + '°（180°/z_c），配对件不可互换</b>' : '（两片相同，第二片转 180°）') + '</td></tr>'
       + '<tr><td>摆线轮最大外缘（含偏心）</td><td>Ø' + f(2*r.outerDisc, 1) + '</td></tr>'
       + '<tr><td>针齿：套 Ø / 销 Ø / 长度</td><td>Ø' + f(r.dPin) + ' / Ø' + f(r.pinCore) + ' / ' + f(Lpin, 0) + '</td></tr>'
@@ -1486,7 +1492,8 @@ function buildPartsDoc(d) {
       + '<tr><td>输出法兰（与行星架盘2 一体）</td><td>外径与安装孔自定</td></tr></table>');
     // 6 标准件
     H.push('<h2>6 标准件清单</h2><table><tr><th>名称</th><th>规格</th><th>数量</th></tr>'
-      + '<tr><td>曲轴轴承（' + (r.crank && r.crank.name.startsWith('HK') ? '滚针' : '深沟球') + '）</td><td>' + (r.crank ? r.crank.name + '（' + Bd + '×' + BD + '×' + BB + '）' : '—') + '</td><td>每根曲轴 4 件 × ' + d.n + '</td></tr>'
+      + '<tr><td>曲轴支承轴承（行星架盘内）</td><td>' + (r.crank ? r.crank.name + '（' + Bd + '×' + BD + '×' + BB + '）' : '—') + '</td><td>每根曲轴 2 件 × ' + d.n + '</td></tr>'
+      + '<tr><td>摆线轮孔轴承（滚针）</td><td>' + (r.crank ? r.crank.name2 + '（' + Bd2 + '×' + BD2 + '×' + BB2 + '）' : '—') + '</td><td>每根曲轴 2 件 × ' + d.n + '</td></tr>'
       + '<tr><td>针齿滚子（销+套）</td><td>销 Ø' + f(r.pinCore) + ' / 套 Ø' + f(r.dPin) + '</td><td>' + r.zpin + '</td></tr></table>');
   } else {
     // 单级：自制件 = 行星架 + 端盖
@@ -1500,7 +1507,7 @@ function buildPartsDoc(d) {
   // 装配要点
   H.push('<h2>' + (r ? '7' : '5') + ' 装配要点</h2><ol>'
     + '<li>配合：行星轮与曲轴（销轴）过盈 0.005~0.015 压装；轴承内圈随轴转取紧配（k5/m6），外圈与孔取过渡配合（H7/J7）；针齿销压入壳体。</li>'
-    + (r ? '<li><b>装配顺序（关键）</b>：行星架两盘不可先连成一体再穿曲轴——偏心段比支承轴颈鼓出 e，过不了盘上轴承孔。正确顺序：行星轮从输入端压装 → 盘1 轴承从输入端套入 → 摆线轮 B、A 从输出端套入（越过轴端与盘2 轴颈后横向平移 e 对准偏心段；A 经过 B 偏心段时先对齐 B 轴线再通过）→ 盘2 轴承从输出端套入 → 行星架两盘从两端分别套上轴承 → 连接柱锁紧两盘 → 整体推入针齿壳。</li>'
+    + (r ? '<li><b>装配顺序（台阶曲拐轴，轴肩定位）</b>：① 摆线轮 A、B 平放（裸孔 Ø' + f(r.crank.D2) + '，未装轴承），曲轴从输入端方向依次穿入 A、B 孔——裸孔大于偏心段外廓 Ø' + f(r.crank.d2 + 2*r.e, 1) + '，同轴直接通过；② 滚针轴承（摆线轮孔用，内径 Ø' + f(r.crank.d2) + '）套到偏心段上、压入摆线轮孔；③ 支承轴承（内径 Ø' + f(r.crank.d) + '）从两端套到轴颈上，抵住偏心段轴肩；④ 行星架两盘从两端套上支承轴承，连接柱锁紧两盘；⑤ 行星轮从输入端压装；⑥ 整体推入针齿壳。</li>'
         + (d.n % 2 === 1
         ? '<li>摆线轮 A/B 为配对件（孔位相差 ' + f(180/r.zc, 1) + '°），按标记安装，不可互换；装错则两片与针齿干涉。</li>'
         : '<li>摆线轮 B 绕主轴相对 A 旋转 180° 安装（错相）；两片完全相同。</li>')
@@ -1560,7 +1567,7 @@ function buildPartsPy(d) {
     P.push('CYC_PTS = ' + pts(r.pts));
     P.push('BCYC = ' + r.bCyc.toFixed(3) + '   # 摆线轮厚度');
     P.push('A = ' + r.a.toFixed(4) + '   # 曲轴孔分布圆半径（= 工作中心距）');
-    P.push('HOLE = ' + (r.crank ? r.crank.D/2 : 3).toFixed(3) + '   # 曲轴孔半径（= 曲轴轴承外圈）');
+    P.push('HOLE = ' + (r.crank ? r.crank.D2/2 : 3).toFixed(3) + '   # 曲轴孔半径（= 偏心段轴承外圈）');
     P.push('DELTA = ' + (Math.PI/r.zc).toFixed(8) + '   # 孔位错相角（弧度）= 180°/z_c，双盘错相所需');
     P.push('import math');
     P.push('def disc(phase):');
@@ -1576,19 +1583,21 @@ function buildPartsPy(d) {
       P.push('export(disc(0), "摆线轮_zc' + r.zc + '", "x2，第二片旋转180°装配")');
     }
     P.push('');
-    P.push('# ---- 曲轴 ×' + d.n + '（轴颈 Ø' + (r.crank ? r.crank.d : 3) + '，双偏心段 ±' + r.e.toFixed(3) + 'mm 错相180°） ----');
-    P.push('J = ' + (r.crank ? r.crank.d/2 : 1.5).toFixed(3) + '   # 轴颈半径');
-    P.push('BB = ' + (r.crank ? r.crank.B : 6).toFixed(3) + '   # 轴承宽度');
+    P.push('# ---- 曲轴 ×' + d.n + '（台阶曲拐轴：支承轴颈 Ø' + (r.crank ? r.crank.d : 3) + '，偏心段 Ø' + (r.crank ? r.crank.d2 : 5) + ' 形成轴肩，±' + r.e.toFixed(3) + 'mm 错相180°） ----');
+    P.push('J1 = ' + (r.crank ? r.crank.d/2 : 1.5).toFixed(3) + '   # 支承轴颈半径（= 行星轮孔）');
+    P.push('J2 = ' + (r.crank ? r.crank.d2/2 : 2.5).toFixed(3) + '   # 偏心段半径（比轴颈粗，形成轴肩）');
+    P.push('BB = ' + (r.crank ? r.crank.B : 6).toFixed(3) + '   # 支承轴承宽度');
+    P.push('BB2 = ' + (r.crank ? r.crank.B2 : 9).toFixed(3) + '   # 偏心段轴承宽度');
     P.push('E = ' + r.e.toFixed(4) + '   # 偏心距');
-    P.push('crank = cyl(J, B, 0)                          # 行星轮压装段 z:0..B');
-    P.push('crank = crank.fuse(cyl(J, BB, B))             # 行星架盘1 轴承段');
+    P.push('crank = cyl(J1, B, 0)                          # 行星轮压装段 z:0..B');
+    P.push('crank = crank.fuse(cyl(J1, BB, B))             # 行星架盘1 轴承段');
     P.push('zA = B + BB');
-    P.push('crank = crank.fuse(cyl(J, BCYC, zA, E, 0))    # 偏心段A（0°）');
+    P.push('crank = crank.fuse(cyl(J2, BCYC, zA, E, 0))    # 偏心段A（0°，粗段）');
     P.push('zB = zA + BCYC');
-    P.push('crank = crank.fuse(cyl(J, BCYC, zB, -E, 0))   # 偏心段B（180°）');
+    P.push('crank = crank.fuse(cyl(J2, BCYC, zB, -E, 0))   # 偏心段B（180°，粗段）');
     P.push('zC = zB + BCYC');
-    P.push('crank = crank.fuse(cyl(J, BB, zC))            # 行星架盘2 轴承段');
-    P.push('crank = crank.fuse(cyl(J*0.9, 2, zC+BB))      # 轴端');
+    P.push('crank = crank.fuse(cyl(J1, BB, zC))            # 行星架盘2 轴承段');
+    P.push('crank = crank.fuse(cyl(J1*0.9, 2, zC+BB))      # 轴端');
     P.push('crank = crank.removeSplitter()                # 合并共面，保证单一实体');
     P.push('export(crank, "曲轴_e' + r.e.toFixed(2) + '", "x' + d.n + '")');
     P.push('');
