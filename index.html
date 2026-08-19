@@ -994,7 +994,20 @@ function drawCyclo(d) {
     ctx2.arc(cx + r.Rp*Math.cos(a)*zoom, cy + r.Rp*Math.sin(a)*zoom, r.rp*zoom, 0, 2*Math.PI);
     ctx2.fill(); ctx2.stroke();
   }
-  // 摆线轮（轮廓 = 插件同款曲线方程；中心随曲轴偏心公转，自身随行星架转）
+  // 摆线轮 B（虚线轮廓，画在 A 下面）：中心偏心互反 180°；
+  // n 偶数 = A 整体转 180°，n 奇数 = A/B 配对件（齿相错半齿距 180°/z_c，孔位相同）
+  ctx2.save();
+  ctx2.translate(cx - ex*zoom, cy - ey*zoom);
+  ctx2.rotate(thD + (d.n % 2 === 1 ? Math.PI/r.zc : Math.PI));
+  ctx2.scale(zoom, zoom);
+  ctx2.beginPath();
+  r.pts.forEach(([x, y], i) => i ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y));
+  ctx2.closePath();
+  ctx2.fillStyle = 'rgba(125,135,148,0.35)'; ctx2.fill();
+  ctx2.strokeStyle = '#e8b06a'; ctx2.lineWidth = 1.2/zoom;
+  ctx2.setLineDash([3/zoom, 2.5/zoom]); ctx2.stroke(); ctx2.setLineDash([]);
+  ctx2.restore();
+  // 摆线轮 A（轮廓 = 插件同款曲线方程；中心随曲轴偏心公转，自身随行星架转）
   ctx2.save();
   ctx2.translate(cx + ex*zoom, cy + ey*zoom);
   ctx2.rotate(thD);
@@ -1073,7 +1086,7 @@ function drawCyclo(d) {
 
   // 标注
   ctx2.fillStyle = '#9fb0c0'; ctx2.font = '12px sans-serif'; ctx2.textAlign = 'center';
-  ctx2.fillText(`RV 摆线级（俯视）：针齿×${r.zpin}（黄，固定）  摆线轮（灰，随行星架 ${r.n2.toFixed(1)}rpm）  曲轴×${d.n}（绿，轴心→盘心 = 偏心 e=${r.e.toFixed(2)}mm）`, W2/2, 22);
+  ctx2.fillText(`RV 摆线级（俯视）：针齿×${r.zpin}（黄，固定）  摆线轮 A（灰实）+ B（橙虚线，偏心互反 180° 错相，随行星架 ${r.n2.toFixed(1)}rpm）  曲轴×${d.n}（绿）`, W2/2, 22);
   ctx2.fillStyle = (r.T2 >= d.T2req/1000 && r.valid) ? '#8ef0c1' : '#ff8a8a';
   ctx2.font = 'bold 13px sans-serif';
   ctx2.fillText(`整机输出 T₂=${r.T2.toFixed(2)} N·m（i=1+(${r.zp}/${r.zs})×${r.zpin}=${r.iTot.toFixed(1)}） ／ 压力角 ${r.paDeg.toFixed(1)}° ／ ${r.valid ? '曲线有效' : '⚠ 曲线有奇异点'}`, W2/2, H2-14);
