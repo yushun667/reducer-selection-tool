@@ -938,7 +938,7 @@ const TIPS = {
   rT2: '实际输出扭矩 = T₁·i·η（RV 为 T₁·(1+(z_p/z_s)(z_c+1))·η₁η₂），须 ≥ 要求输出扭矩。',
   rX: '变位系数：z<17 时自动取最小正变位 x=(17−z)/17 避免根切，齿形图按变位后绘制（齿根变壮、齿顶加大）。x_r 为内齿圈反算变位量（等中心距）。注意：Fusion 的 Spur Gear 插件不支持变位参数，建模时需按 x 手动修形（齿条刀具移距 x·m）。',
   rvS1: '真实 RV 的渐开线级：无内齿圈，太阳轮直接驱动行星轮，行星轮轴即摆线轮曲轴。只承受输入级小扭矩，故模数可以很小；它的作用是把运动分配给 2~3 根曲轴。',
-  rvZ: '摆线轮齿数 z_c 取奇数：双摆线盘 180° 错相安装的几何必然（针齿数 z_c+1 必须为偶数，针齿环才有 180° 对称性），否则第二片轮与针齿干涉。',
+  rvZ: '摆线轮齿数 z_c 取奇数：双盘 180° 错相的几何必然（针齿数 z_c+1 必须为偶数，针齿环才有 180° 对称性），否则第二片与针齿干涉。注意：曲轴孔数 n 为奇数（3/5）时孔系无 180° 对称性，两片摆线轮孔位须错开 180°/z_c，是配对件、不可互换（生成器自动出 A/B 两件）；n 为偶数时两片完全相同。',
   rvPd: '针齿直径 = max（弯曲强度需求, 你设置的"针齿最小直径"），取标准滚子；弯曲按双支点梁 M=F·L/4、σ=32M/(πd³) ≤ 600MPa（GCr15）；几何上限 0.6×节距（针齿不能相碰）。标红 ⇒ 针齿太密装不下粗针：加大"最小直径"旁边的约束会自动转向针数更少（z_c 更小）的方案，或加大外径/降扭矩。',
   rvPA: '摆线轮最小压力角（插件同款算法）：≥30° 传动顺畅。偏小 ⇒ 减小偏心距或针齿直径，程序会自动下调短幅系数 K₁。',
   rvValid: '摆线曲线奇异点检查：e·z_针 < R_p 且 最大偏移量 > 针齿半径。有奇异点 = 曲线自相交、无法加工 ⇒ 减小 e 或针齿直径。',
@@ -1177,7 +1177,8 @@ function frame(now) {
                               : '—', r.crank && !r.crank.lifeFail ? 'ok' : 'warn');
     setRO('rvCrankS', r.crank ? `${r.crank.sigB.toFixed(0)} MPa ≤ σ_FP=${d.sFP} ${r.crank.bendFail ? '✗' : '✓'}`
                               : '—', r.crank && !r.crank.bendFail ? 'ok' : 'warn');
-    setRO('rvDiscH', `${n} 孔 ・ 分布圆 Ø${(2*r.a).toFixed(2)} ・ 孔径 Ø${r.crank ? r.crank.D : '?'}（轴承外圈）`);
+    setRO('rvDiscH', `${n} 孔 ・ 分布圆 Ø${(2*r.a).toFixed(2)} ・ 孔径 Ø${r.crank ? r.crank.D : '?'}（轴承外圈）`
+        + (n % 2 === 1 ? ` ⚠ 孔数为奇数：A/B 两片孔位错开 ${(180/r.zc).toFixed(1)}°，非同一零件` : ''));
     setRO('rvBrg', d.brgIn ? `电机轴支承；若自加支承：Ø${d.shaft} 可配 ${d.brgIn[3]}`
                            : `电机轴支承；若自加支承：建议轴径 Ø${d.brgSug[0]}`);
     setRO('rvTot', `${r.iTot.toFixed(2)} = 1 + (${r.zp}/${r.zs})×${r.zpin}（对需求 ${r.iStar2.toFixed(1)} 偏差 ${(100*(r.iTot-r.iStar2)/r.iStar2).toFixed(1)}%）`,
@@ -1210,7 +1211,9 @@ function frame(now) {
   $('grpCycC').style.display = d.rv ? '' : 'none';
   if (d.rv) {
     const r = d.rv;
-    $('cyName').textContent = `Cycloidal Gear ${r.zc} teeth ×2`;
+    $('cyName').textContent = d.n % 2 === 1
+      ? `Cycloidal Gear ${r.zc} teeth（A/B 配对两件，孔位错开 ${(180/r.zc).toFixed(1)}°）`
+      : `Cycloidal Gear ${r.zc} teeth ×2`;
     $('cyZ').textContent = r.zc;
     $('cyE').textContent = mm2(r.e);
     $('cyPd').textContent = mm2(r.dPin) + '（标准滚子）';
@@ -1447,7 +1450,8 @@ function buildPartsDoc(d) {
       + '<tr><td>摆线轮齿数 z_c / 针齿数</td><td>' + r.zc + ' / ' + r.zpin + '</td></tr>'
       + '<tr><td>偏心距 e / 短幅系数 K₁</td><td>' + f(r.e) + ' / ' + f(r.k1Used) + '</td></tr>'
       + '<tr><td>摆线轮厚度 b_c（每盘，共 2 盘）</td><td>' + f(r.bCyc) + '</td></tr>'
-      + '<tr><td>摆线轮曲轴孔</td><td>' + d.n + ' × Ø' + f(BD) + '，分布圆 Ø' + f(2*r.a) + '</td></tr>'
+      + '<tr><td>摆线轮曲轴孔</td><td>' + d.n + ' × Ø' + f(BD) + '，分布圆 Ø' + f(2*r.a)
+      + (d.n % 2 === 1 ? '；<b>A/B 两片孔位错开 ' + f(180/r.zc, 1) + '°（180°/z_c），配对件不可互换</b>' : '（两片相同，第二片转 180°）') + '</td></tr>'
       + '<tr><td>摆线轮最大外缘（含偏心）</td><td>Ø' + f(2*r.outerDisc, 1) + '</td></tr>'
       + '<tr><td>针齿：套 Ø / 销 Ø / 长度</td><td>Ø' + f(r.dPin) + ' / Ø' + f(r.pinCore) + ' / ' + f(Lpin, 0) + '</td></tr>'
       + '<tr><td>针齿分布圆</td><td>Ø' + f(r.Dp, 1) + '，' + f(360/r.zpin, 1) + '° 均布 ×' + r.zpin + '</td></tr></table>');
@@ -1483,7 +1487,9 @@ function buildPartsDoc(d) {
   // 装配要点
   H.push('<h2>' + (r ? '7' : '5') + ' 装配要点</h2><ol>'
     + '<li>配合：行星轮与曲轴（销轴）过盈 0.005~0.015 压装；轴承内圈随轴转取紧配（k5/m6），外圈与孔取过渡配合（H7/J7）；针齿销压入壳体。</li>'
-    + (r ? '<li>摆线轮 B 绕主轴相对 A 旋转 180° 安装（错相）；两片完全相同。</li>'
+    + (r ? (d.n % 2 === 1
+        ? '<li>摆线轮 A/B 为配对件（孔位相差 ' + f(180/r.zc, 1) + '°），按标记安装，不可互换；装错则两片与针齿干涉。</li>'
+        : '<li>摆线轮 B 绕主轴相对 A 旋转 180° 安装（错相）；两片完全相同。</li>')
         + '<li>各曲轴的行星轮齿相位须一致（压装前做配对标记），否则摆线轮孔对不上。</li>' : '')
     + '<li>润滑：关节用低粘度润滑脂，填充约 30% 空间。</li></ol>');
   H.push('</body></html>');
@@ -1533,17 +1539,28 @@ function buildPartsPy(d) {
     const r = d.rv;
     const Lpin = 2*r.bCyc + 4;
     P.push('');
-    P.push('# ---- 摆线轮 ×2（z_c=' + r.zc + '，第二片装配时绕主轴转 180° 错相） ----');
+    P.push('# ---- 摆线轮 ×2（z_c=' + r.zc + '） ----');
+    P.push(d.n % 2 === 1
+      ? '# 注意：曲轴孔数为奇数（' + d.n + '），孔系无 180° 对称性，两片不是同一零件！'
+      : '# 曲轴孔数为偶数（' + d.n + '）：两片完全相同，第二片绕主轴转 180° 装配');
     P.push('CYC_PTS = ' + pts(r.pts));
     P.push('BCYC = ' + r.bCyc.toFixed(3) + '   # 摆线轮厚度');
     P.push('A = ' + r.a.toFixed(4) + '   # 曲轴孔分布圆半径（= 工作中心距）');
     P.push('HOLE = ' + (r.crank ? r.crank.D/2 : 3).toFixed(3) + '   # 曲轴孔半径（= 曲轴轴承外圈）');
-    P.push('cyc = extrude(CYC_PTS, BCYC)');
-    P.push('for j in range(' + d.n + '):');
-    P.push('    aa = j*2*' + Math.PI.toFixed(12) + '/' + d.n);
-    P.push('    import math');
-    P.push('    cyc = cyc.cut(cyl(HOLE, BCYC, 0, A*math.cos(aa), A*math.sin(aa)))');
-    P.push('export(cyc, "摆线轮_zc' + r.zc + '", "x2，第二片旋转180°装配")');
+    P.push('DELTA = ' + (Math.PI/r.zc).toFixed(8) + '   # 孔位错相角（弧度）= 180°/z_c，双盘错相所需');
+    P.push('import math');
+    P.push('def disc(phase):');
+    P.push('    s = extrude(CYC_PTS, BCYC)');
+    P.push('    for j in range(' + d.n + '):');
+    P.push('        aa = j*2*math.pi/' + d.n + ' - phase');
+    P.push('        s = s.cut(cyl(HOLE, BCYC, 0, A*math.cos(aa), A*math.sin(aa)))');
+    P.push('    return s');
+    if (d.n % 2 === 1) {
+      P.push('export(disc(0), "摆线轮A_zc' + r.zc + '", "x1")');
+      P.push('export(disc(DELTA), "摆线轮B_zc' + r.zc + '", "x1，孔位比A错开 180/z_c=' + (180/r.zc).toFixed(2) + '°，与A配对使用（不可互换）")');
+    } else {
+      P.push('export(disc(0), "摆线轮_zc' + r.zc + '", "x2，第二片旋转180°装配")');
+    }
     P.push('');
     P.push('# ---- 曲轴 ×' + d.n + '（轴颈 Ø' + (r.crank ? r.crank.d : 3) + '，双偏心段 ±' + r.e.toFixed(3) + 'mm 错相180°） ----');
     P.push('J = ' + (r.crank ? r.crank.d/2 : 1.5).toFixed(3) + '   # 轴颈半径');
